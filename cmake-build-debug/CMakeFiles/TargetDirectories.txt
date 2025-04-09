@@ -1,0 +1,3 @@
+C:/Users/tommy/CLionProjects/Badland_ING1_sem2/cmake-build-debug/CMakeFiles/Badland_ING1_sem2.dir
+C:/Users/tommy/CLionProjects/Badland_ING1_sem2/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/tommy/CLionProjects/Badland_ING1_sem2/cmake-build-debug/CMakeFiles/rebuild_cache.dir
