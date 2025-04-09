@@ -2,6 +2,6 @@
 #include <allegro.h>
 int main(void)
 {
-    printf("Hello, World!\n");
+    printf("caca!\n");
     return 0;
 }
