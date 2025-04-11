@@ -2,7 +2,7 @@
 #include <allegro.h>
 int main(void)
 {
-    printf("caca!\n");
-    printf("caca2!\n");
+    printf("!\n");
+    printf("kk\n");
     return 0;
 }
