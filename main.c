@@ -3,7 +3,7 @@
 #include <time.h>
 
 #define GAME_SCREEN_W 1000
-#define GAME_SCREEN_H 900
+#define GAME_SCREEN_H 1000
 #define GRAVITY 1
 #define JUMP_STRENGTH -15
 #define PLAYER_SPEED 5
