@@ -1,4 +1,5 @@
 #include <allegro.h>
+#include <stdio.h>
 
 #define SCREEN_W 1000
 #define SCREEN_H 1000
@@ -15,6 +16,7 @@ BITMAP *player;
 int player_x = 100;
 int player_y = 300;
 int player_speed_y = 0;
+int player_scale = 5; // Facteur de mise à l'échelle du personnage
 
 BITMAP* copy_bitmap_with_transparency(BITMAP *src, int scale_factor) {
     int new_w = src->w / scale_factor;
@@ -37,7 +39,7 @@ BITMAP* copy_bitmap_with_transparency(BITMAP *src, int scale_factor) {
 
 void init() {
     allegro_init();
-    install_keyboard();
+    install_keyboard();  // Assure-toi que le clavier est bien installé
     set_color_depth(32);
     set_gfx_mode(GFX_AUTODETECT_WINDOWED, SCREEN_W, SCREEN_H, 0, 0);
 
@@ -50,7 +52,7 @@ void init() {
         exit(1);
     }
 
-    player = copy_bitmap_with_transparency(player_original, 2);  // réduction à 50%
+    player = copy_bitmap_with_transparency(player_original, player_scale);  // utilisation de player_scale
 }
 
 void deinit() {
@@ -61,21 +63,20 @@ void deinit() {
 }
 
 void update_physics() {
-    // Déplacement horizontal
-    if (key[KEY_RIGHT]) {
+    int moving = 0;
+
+    if (key[KEY_D]) {
         player_x += PLAYER_SPEED;
-        if (player_x > SCREEN_W - player->w) {
-            player_x = SCREEN_W - player->w;
-        }
+        moving = 1;
     }
-
-    if (key[KEY_LEFT]) {
+    if (key[KEY_A]) {
         player_x -= PLAYER_SPEED;
-        if (player_x < 0) {
-            player_x = 0;
-        }
+        moving = 1;
     }
 
+    // Limites de l'écran
+    if (player_x < 0) player_x = 0;
+    if (player_x > SCREEN_W - player->w) player_x = SCREEN_W - player->w;
     // Saut possible à tout moment (type "vol battement")
     if (key[KEY_SPACE]) {
         player_speed_y = JUMP_STRENGTH;
@@ -117,6 +118,11 @@ int main() {
     init();
 
     while (!key[KEY_ESC]) {
+        // Ajout d'un débogage pour afficher les touches pressées
+        if (key[KEY_Q]) {
+            printf("Touche Q pressée\n");
+        }
+
         update_physics();
         draw();
         rest(20);  // ~50 FPS
