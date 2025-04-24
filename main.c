@@ -23,7 +23,7 @@ int player_scale = 5; // Facteur de mise à l'échelle du personnage
 // Position du "monde", pour le scrolling
 int world_x = 0;
 
-// Variables pour le timer
+// Variables pour le timer et l'état du jeu
 int game_started = 0;
 time_t start_time = 0;
 int elapsed_seconds = 0;
@@ -73,20 +73,21 @@ void deinit() {
 }
 
 void update_physics() {
-    // Scrolling automatique
-    world_x += SCROLL_SPEED;
+    // Scrolling automatique seulement si le jeu a commencé
+    if (game_started) {
+        world_x += SCROLL_SPEED;
 
-    // Limites du scrolling (si ton background est plus large que SCREEN_W)
-    // Si tu veux un scrolling infini, tu peux supprimer cette limite
-    if (world_x > background->w - SCREEN_W) {
-        world_x = background->w - SCREEN_W;
+        // Limites du scrolling (si ton background est plus large que SCREEN_W)
+        if (world_x > background->w - SCREEN_W) {
+            world_x = background->w - SCREEN_W;
+        }
     }
 
     // Saut possible à tout moment (type "vol battement")
     if (key[KEY_SPACE]) {
         player_speed_y = JUMP_STRENGTH;
 
-        // Démarre le timer au premier appui sur espace
+        // Démarre le jeu et le timer au premier appui sur espace
         if (!game_started) {
             game_started = 1;
             start_time = time(NULL);
@@ -135,6 +136,20 @@ void draw_timer() {
     }
 }
 
+void draw_start_message() {
+    if (!game_started) {
+        char *msg = "Appuyez sur ESPACE pour commencer";
+        int text_width = text_length(font, msg);
+        int text_x = (SCREEN_W - text_width) / 2;
+        int text_y = SCREEN_H / 2;
+
+        // Dessine un fond semi-transparent
+        rectfill(buffer, text_x - 10, text_y - 10, text_x + text_width + 10, text_y + 20, makecol(0, 0, 0));
+        // Dessine le message
+        textout_ex(buffer, font, msg, text_x, text_y, makecol(255, 255, 255), -1);
+    }
+}
+
 void draw() {
     // Dessine le fond défilant
     draw_sprite(buffer, background, -world_x, 0);
@@ -148,6 +163,9 @@ void draw() {
             }
         }
     }
+
+    // Dessine le message de départ si le jeu n'a pas commencé
+    draw_start_message();
 
     // Dessine le timer
     draw_timer();
