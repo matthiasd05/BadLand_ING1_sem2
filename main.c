@@ -1,5 +1,6 @@
 #include <allegro.h>
 #include <stdio.h>
+#include <time.h>
 
 #define SCREEN_W 1000
 #define SCREEN_H 1000
@@ -20,6 +21,11 @@ int player_scale = 5; // Facteur de mise à l'échelle du personnage
 
 // Position du "monde", pour le scrolling
 int world_x = 0;
+
+// Variables pour le timer
+int game_started = 0;
+time_t start_time = 0;
+int elapsed_seconds = 0;
 
 BITMAP* copy_bitmap_with_transparency(BITMAP *src, int scale_factor) {
     int new_w = src->w / scale_factor;
@@ -42,7 +48,7 @@ BITMAP* copy_bitmap_with_transparency(BITMAP *src, int scale_factor) {
 
 void init() {
     allegro_init();
-    install_keyboard();  // Assure-toi que le clavier est bien installé
+    install_keyboard();
     set_color_depth(32);
     set_gfx_mode(GFX_AUTODETECT_WINDOWED, SCREEN_W, SCREEN_H, 0, 0);
 
@@ -55,7 +61,7 @@ void init() {
         exit(1);
     }
 
-    player = copy_bitmap_with_transparency(player_original, player_scale);  // utilisation de player_scale
+    player = copy_bitmap_with_transparency(player_original, player_scale);
 }
 
 void deinit() {
@@ -71,17 +77,17 @@ void update_physics() {
     if (key[KEY_D]) {
         player_x += PLAYER_SPEED;
         moving = 1;
-        world_x += PLAYER_SPEED;  // Déplacement du monde à droite
+        world_x += PLAYER_SPEED;
     }
     if (key[KEY_A]) {
         player_x -= PLAYER_SPEED;
         moving = 1;
-        world_x -= PLAYER_SPEED;  // Déplacement du monde à gauche
+        world_x -= PLAYER_SPEED;
     }
 
     // Limites du scrolling
     if (world_x < 0) world_x = 0;
-    if (world_x > SCREEN_W) world_x = SCREEN_W; // Empêche le fond de dépasser la limite droite
+    if (world_x > SCREEN_W) world_x = SCREEN_W;
 
     // Limites du joueur
     if (player_x < 0) player_x = 0;
@@ -90,6 +96,12 @@ void update_physics() {
     // Saut possible à tout moment (type "vol battement")
     if (key[KEY_SPACE]) {
         player_speed_y = JUMP_STRENGTH;
+
+        // Démarre le timer au premier appui sur espace
+        if (!game_started) {
+            game_started = 1;
+            start_time = time(NULL);
+        }
     }
 
     // Gravité
@@ -109,9 +121,34 @@ void update_physics() {
     }
 }
 
+void draw_timer() {
+    if (game_started) {
+        // Calcule le temps écoulé
+        elapsed_seconds = (int)difftime(time(NULL), start_time);
+
+        // Convertit en minutes et secondes
+        int minutes = elapsed_seconds / 60;
+        int seconds = elapsed_seconds % 60;
+
+        // Formatte le texte
+        char time_str[20];
+        sprintf(time_str, "Time: %02d:%02d", minutes, seconds);
+
+        // Calcule la position centrée
+        int text_width = text_length(font, time_str);
+        int text_x = (SCREEN_W - text_width) / 2;
+
+        // Dessine un fond semi-transparent pour le timer
+        rectfill(buffer, text_x - 10, 10, text_x + text_width + 10, 30, makecol(0, 0, 0));
+
+        // Dessine le texte du timer
+        textout_ex(buffer, font, time_str, text_x, 15, makecol(255, 255, 255), -1);
+    }
+}
+
 void draw() {
     // Dessine le fond défilant
-    draw_sprite(buffer, background, -world_x, 0);  // Déplace le fond en fonction de `world_x`
+    draw_sprite(buffer, background, -world_x, 0);
 
     // Dessine le personnage
     for (int y = 0; y < player->h; y++) {
@@ -123,6 +160,9 @@ void draw() {
         }
     }
 
+    // Dessine le timer
+    draw_timer();
+
     blit(buffer, screen, 0, 0, 0, 0, SCREEN_W, SCREEN_H);
 }
 
@@ -130,11 +170,6 @@ int main() {
     init();
 
     while (!key[KEY_ESC]) {
-        // Ajout d'un débogage pour afficher les touches pressées
-        if (key[KEY_Q]) {
-            printf("Touche Q pressée\n");
-        }
-
         update_physics();
         draw();
         rest(20);  // ~50 FPS
