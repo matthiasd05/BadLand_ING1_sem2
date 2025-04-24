@@ -18,6 +18,9 @@ int player_y = 300;
 int player_speed_y = 0;
 int player_scale = 5; // Facteur de mise à l'échelle du personnage
 
+// Position du "monde", pour le scrolling
+int world_x = 0;
+
 BITMAP* copy_bitmap_with_transparency(BITMAP *src, int scale_factor) {
     int new_w = src->w / scale_factor;
     int new_h = src->h / scale_factor;
@@ -68,15 +71,22 @@ void update_physics() {
     if (key[KEY_D]) {
         player_x += PLAYER_SPEED;
         moving = 1;
+        world_x += PLAYER_SPEED;  // Déplacement du monde à droite
     }
     if (key[KEY_A]) {
         player_x -= PLAYER_SPEED;
         moving = 1;
+        world_x -= PLAYER_SPEED;  // Déplacement du monde à gauche
     }
 
-    // Limites de l'écran
+    // Limites du scrolling
+    if (world_x < 0) world_x = 0;
+    if (world_x > SCREEN_W) world_x = SCREEN_W; // Empêche le fond de dépasser la limite droite
+
+    // Limites du joueur
     if (player_x < 0) player_x = 0;
     if (player_x > SCREEN_W - player->w) player_x = SCREEN_W - player->w;
+
     // Saut possible à tout moment (type "vol battement")
     if (key[KEY_SPACE]) {
         player_speed_y = JUMP_STRENGTH;
@@ -100,8 +110,10 @@ void update_physics() {
 }
 
 void draw() {
-    draw_sprite(buffer, background, 0, 0);
+    // Dessine le fond défilant
+    draw_sprite(buffer, background, -world_x, 0);  // Déplace le fond en fonction de `world_x`
 
+    // Dessine le personnage
     for (int y = 0; y < player->h; y++) {
         for (int x = 0; x < player->w; x++) {
             int color = getpixel(player, x, y);
