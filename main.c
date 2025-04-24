@@ -4,6 +4,7 @@
 #define SCREEN_H 1000
 #define GRAVITY 1
 #define JUMP_STRENGTH -15
+#define PLAYER_SPEED 5
 #define MAGENTA makecol(255, 0, 255)
 
 BITMAP *buffer;
@@ -42,15 +43,14 @@ void init() {
 
     buffer = create_bitmap(SCREEN_W, SCREEN_H);
     background = load_bitmap("background.bmp", NULL);
-    player_original = load_bitmap("player.bmp", NULL);  // image originale
+    player_original = load_bitmap("player.bmp", NULL);
 
     if (!background || !player_original) {
         allegro_message("Erreur lors du chargement des bitmaps !");
         exit(1);
     }
 
-    // Créer une version réduite avec transparence manuelle
-    player = copy_bitmap_with_transparency(player_original, 2);  // 2 = réduction à 50%
+    player = copy_bitmap_with_transparency(player_original, 2);  // réduction à 50%
 }
 
 void deinit() {
@@ -61,18 +61,37 @@ void deinit() {
 }
 
 void update_physics() {
+    // Déplacement horizontal
+    if (key[KEY_RIGHT]) {
+        player_x += PLAYER_SPEED;
+        if (player_x > SCREEN_W - player->w) {
+            player_x = SCREEN_W - player->w;
+        }
+    }
+
+    if (key[KEY_LEFT]) {
+        player_x -= PLAYER_SPEED;
+        if (player_x < 0) {
+            player_x = 0;
+        }
+    }
+
+    // Saut possible à tout moment (type "vol battement")
     if (key[KEY_SPACE]) {
         player_speed_y = JUMP_STRENGTH;
     }
 
+    // Gravité
     player_speed_y += GRAVITY;
     player_y += player_speed_y;
 
+    // Collision sol
     if (player_y > SCREEN_H - player->h) {
         player_y = SCREEN_H - player->h;
         player_speed_y = 0;
     }
 
+    // Collision plafond
     if (player_y < 0) {
         player_y = 0;
         player_speed_y = 0;
@@ -82,7 +101,6 @@ void update_physics() {
 void draw() {
     draw_sprite(buffer, background, 0, 0);
 
-    // Dessiner le joueur manuellement avec transparence
     for (int y = 0; y < player->h; y++) {
         for (int x = 0; x < player->w; x++) {
             int color = getpixel(player, x, y);
@@ -101,7 +119,7 @@ int main() {
     while (!key[KEY_ESC]) {
         update_physics();
         draw();
-        rest(20);
+        rest(20);  // ~50 FPS
     }
 
     deinit();
