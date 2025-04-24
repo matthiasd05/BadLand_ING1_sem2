@@ -2,31 +2,39 @@
 #include <stdio.h>
 #include <time.h>
 
-#define SCREEN_W 1000
-#define SCREEN_H 1000
+#define GAME_SCREEN_W 1000
+#define GAME_SCREEN_H 1000
 #define GRAVITY 1
 #define JUMP_STRENGTH -15
-#define SCROLL_SPEED 2  // Vitesse de défilement automatique
-
+#define PLAYER_SPEED 5
 #define MAGENTA makecol(255, 0, 255)
+
+#define MENU 0
+#define PLAYING 1
+int game_state = MENU;
 
 BITMAP *buffer;
 BITMAP *background;
 BITMAP *player_original;
 BITMAP *player;
+BITMAP *menu_background;
+BITMAP *play_button;
+BITMAP *play_button_hover;
 
-int player_x = 100;  // Position fixe en X
+int player_x = 100;
 int player_y = 300;
 int player_speed_y = 0;
-int player_scale = 5; // Facteur de mise à l'échelle du personnage
-
-// Position du "monde", pour le scrolling
+int player_scale = 5;
 int world_x = 0;
 
-// Variables pour le timer
 int game_started = 0;
 time_t start_time = 0;
 int elapsed_seconds = 0;
+
+int my_mouse_x, my_mouse_y;
+int play_button_x, play_button_y;
+int play_button_width = 200;
+int play_button_height = 80;
 
 BITMAP* copy_bitmap_with_transparency(BITMAP *src, int scale_factor) {
     int new_w = src->w / scale_factor;
@@ -50,12 +58,35 @@ BITMAP* copy_bitmap_with_transparency(BITMAP *src, int scale_factor) {
 void init() {
     allegro_init();
     install_keyboard();
+    install_mouse();
     set_color_depth(32);
-    set_gfx_mode(GFX_AUTODETECT_WINDOWED, SCREEN_W, SCREEN_H, 0, 0);
+    set_gfx_mode(GFX_AUTODETECT_WINDOWED, GAME_SCREEN_W, GAME_SCREEN_H, 0, 0);
 
-    buffer = create_bitmap(SCREEN_W, SCREEN_H);
+    buffer = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
     background = load_bitmap("background.bmp", NULL);
     player_original = load_bitmap("player.bmp", NULL);
+
+    menu_background = load_bitmap("menu_bg.bmp", NULL);
+    play_button = load_bitmap("play_button.bmp", NULL);
+    play_button_hover = load_bitmap("play_button_hover.bmp", NULL);
+
+    if (!menu_background) {
+        menu_background = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
+        clear_to_color(menu_background, makecol(50, 50, 100));
+        textout_centre_ex(menu_background, font, "BADLAND GAME", GAME_SCREEN_W/2, GAME_SCREEN_H/3, makecol(255, 255, 255), -1);
+    }
+
+    if (!play_button) {
+        play_button = create_bitmap(play_button_width, play_button_height);
+        clear_to_color(play_button, makecol(70, 70, 150));
+        textout_centre_ex(play_button, font, "JOUER", play_button_width/2, play_button_height/2 - text_height(font)/2, makecol(255, 255, 255), -1);
+    }
+
+    if (!play_button_hover) {
+        play_button_hover = create_bitmap(play_button_width, play_button_height);
+        clear_to_color(play_button_hover, makecol(100, 100, 200));
+        textout_centre_ex(play_button_hover, font, "JOUER", play_button_width/2, play_button_height/2 - text_height(font)/2, makecol(255, 255, 0), -1);
+    }
 
     if (!background || !player_original) {
         allegro_message("Erreur lors du chargement des bitmaps !");
@@ -63,6 +94,9 @@ void init() {
     }
 
     player = copy_bitmap_with_transparency(player_original, player_scale);
+
+    play_button_x = (GAME_SCREEN_W - play_button_width) / 2;
+    play_button_y = GAME_SCREEN_H / 2;
 }
 
 void deinit() {
@@ -70,40 +104,45 @@ void deinit() {
     destroy_bitmap(background);
     destroy_bitmap(player_original);
     destroy_bitmap(player);
+    destroy_bitmap(menu_background);
+    destroy_bitmap(play_button);
+    destroy_bitmap(play_button_hover);
 }
 
 void update_physics() {
-    // Scrolling automatique
-    world_x += SCROLL_SPEED;
+    if (game_state != PLAYING) return;
 
-    // Limites du scrolling (si ton background est plus large que SCREEN_W)
-    // Si tu veux un scrolling infini, tu peux supprimer cette limite
-    if (world_x > background->w - SCREEN_W) {
-        world_x = background->w - SCREEN_W;
+    if (key[KEY_D]) {
+        player_x += PLAYER_SPEED;
+        world_x += PLAYER_SPEED;
+    }
+    if (key[KEY_A]) {
+        player_x -= PLAYER_SPEED;
+        world_x -= PLAYER_SPEED;
     }
 
-    // Saut possible à tout moment (type "vol battement")
+    if (world_x < 0) world_x = 0;
+    if (world_x > GAME_SCREEN_W) world_x = GAME_SCREEN_W;
+
+    if (player_x < 0) player_x = 0;
+    if (player_x > GAME_SCREEN_W - player->w) player_x = GAME_SCREEN_W - player->w;
+
     if (key[KEY_SPACE]) {
         player_speed_y = JUMP_STRENGTH;
-
-        // Démarre le timer au premier appui sur espace
         if (!game_started) {
             game_started = 1;
             start_time = time(NULL);
         }
     }
 
-    // Gravité
     player_speed_y += GRAVITY;
     player_y += player_speed_y;
 
-    // Collision sol
-    if (player_y > SCREEN_H - player->h) {
-        player_y = SCREEN_H - player->h;
+    if (player_y > GAME_SCREEN_H - player->h) {
+        player_y = GAME_SCREEN_H - player->h;
         player_speed_y = 0;
     }
 
-    // Collision plafond
     if (player_y < 0) {
         player_y = 0;
         player_speed_y = 0;
@@ -112,34 +151,24 @@ void update_physics() {
 
 void draw_timer() {
     if (game_started) {
-        // Calcule le temps écoulé
         elapsed_seconds = (int)difftime(time(NULL), start_time);
-
-        // Convertit en minutes et secondes
         int minutes = elapsed_seconds / 60;
         int seconds = elapsed_seconds % 60;
 
-        // Formatte le texte
         char time_str[20];
         sprintf(time_str, "Time: %02d:%02d", minutes, seconds);
 
-        // Calcule la position centrée
         int text_width = text_length(font, time_str);
-        int text_x = (SCREEN_W - text_width) / 2;
+        int text_x = (GAME_SCREEN_W - text_width) / 2;
 
-        // Dessine un fond semi-transparent pour le timer
         rectfill(buffer, text_x - 10, 10, text_x + text_width + 10, 30, makecol(0, 0, 0));
-
-        // Dessine le texte du timer
         textout_ex(buffer, font, time_str, text_x, 15, makecol(255, 255, 255), -1);
     }
 }
 
-void draw() {
-    // Dessine le fond défilant
+void draw_game() {
     draw_sprite(buffer, background, -world_x, 0);
 
-    // Dessine le personnage (position X fixe)
     for (int y = 0; y < player->h; y++) {
         for (int x = 0; x < player->w; x++) {
             int color = getpixel(player, x, y);
@@ -149,19 +178,50 @@ void draw() {
         }
     }
 
-    // Dessine le timer
     draw_timer();
+}
 
-    blit(buffer, screen, 0, 0, 0, 0, SCREEN_W, SCREEN_H);
+void draw_menu() {
+    draw_sprite(buffer, menu_background, 0, 0);
+
+    poll_mouse();
+    my_mouse_x = mouse_x;
+    my_mouse_y = mouse_y;
+
+    int mouse_over_button = (my_mouse_x >= play_button_x && my_mouse_x <= play_button_x + play_button_width &&
+                             my_mouse_y >= play_button_y && my_mouse_y <= play_button_y + play_button_height);
+
+    if (mouse_over_button) {
+        draw_sprite(buffer, play_button_hover, play_button_x, play_button_y);
+        if (mouse_b & 1) {
+            game_state = PLAYING;
+            rest(200);
+        }
+    } else {
+        draw_sprite(buffer, play_button, play_button_x, play_button_y);
+    }
+}
+
+void draw() {
+    clear_bitmap(buffer);
+
+    if (game_state == MENU) {
+        draw_menu();
+    } else {
+        draw_game();
+    }
+
+    blit(buffer, screen, 0, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
 }
 
 int main() {
     init();
 
     while (!key[KEY_ESC]) {
+        show_mouse(screen);
         update_physics();
         draw();
-        rest(20);  // ~50 FPS
+        rest(20);
     }
 
     deinit();
