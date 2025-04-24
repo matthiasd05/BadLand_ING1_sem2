@@ -3,10 +3,10 @@
 #include <time.h>
 
 #define GAME_SCREEN_W 1000
-#define GAME_SCREEN_H 900
+#define GAME_SCREEN_H 1000
 #define GRAVITY 1
 #define JUMP_STRENGTH -15
-#define PLAYER_SPEED 5
+#define SCROLL_SPEED 2  // Vitesse de défilement automatique
 #define MAGENTA makecol(255, 0, 255)
 
 #define MENU 0
@@ -21,7 +21,7 @@ BITMAP *menu_background;
 BITMAP *play_button;
 BITMAP *play_button_hover;
 
-int player_x = 100;
+int player_x = 100;  // Position fixe en X
 int player_y = 300;
 int player_speed_y = 0;
 int player_scale = 5;
@@ -112,37 +112,38 @@ void deinit() {
 void update_physics() {
     if (game_state != PLAYING) return;
 
-    if (key[KEY_D]) {
-        player_x += PLAYER_SPEED;
-        world_x += PLAYER_SPEED;
+    // Scrolling automatique seulement quand le jeu a commencé
+    if (game_started) {
+        world_x += SCROLL_SPEED;
+
+        // Limites du scrolling
+        if (world_x > background->w - GAME_SCREEN_W) {
+            world_x = background->w - GAME_SCREEN_W;
+        }
     }
-    if (key[KEY_A]) {
-        player_x -= PLAYER_SPEED;
-        world_x -= PLAYER_SPEED;
-    }
 
-    if (world_x < 0) world_x = 0;
-    if (world_x > GAME_SCREEN_W) world_x = GAME_SCREEN_W;
-
-    if (player_x < 0) player_x = 0;
-    if (player_x > GAME_SCREEN_W - player->w) player_x = GAME_SCREEN_W - player->w;
-
+    // Saut possible à tout moment
     if (key[KEY_SPACE]) {
         player_speed_y = JUMP_STRENGTH;
+
+        // Démarre le jeu et le timer au premier appui sur espace
         if (!game_started) {
             game_started = 1;
             start_time = time(NULL);
         }
     }
 
+    // Gravité
     player_speed_y += GRAVITY;
     player_y += player_speed_y;
 
+    // Collision sol
     if (player_y > GAME_SCREEN_H - player->h) {
         player_y = GAME_SCREEN_H - player->h;
         player_speed_y = 0;
     }
 
+    // Collision plafond
     if (player_y < 0) {
         player_y = 0;
         player_speed_y = 0;
@@ -169,6 +170,7 @@ void draw_timer() {
 void draw_game() {
     draw_sprite(buffer, background, -world_x, 0);
 
+    // Dessine le personnage (position X fixe)
     for (int y = 0; y < player->h; y++) {
         for (int x = 0; x < player->w; x++) {
             int color = getpixel(player, x, y);
@@ -200,6 +202,14 @@ void draw_menu() {
     } else {
         draw_sprite(buffer, play_button, play_button_x, play_button_y);
     }
+
+    // Ajout d'un message pour indiquer qu'on peut aussi commencer avec espace
+    char *msg = "Ou appuyez sur ESPACE pour commencer";
+    int text_width = text_length(font, msg);
+    int text_x = (GAME_SCREEN_W - text_width) / 2;
+    int text_y = play_button_y + play_button_height + 30;
+
+    textout_ex(buffer, font, msg, text_x, text_y, makecol(255, 255, 255), -1);
 }
 
 void draw() {
@@ -219,6 +229,13 @@ int main() {
 
     while (!key[KEY_ESC]) {
         show_mouse(screen);
+
+        // Permet de commencer le jeu avec espace depuis le menu
+        if (game_state == MENU && key[KEY_SPACE]) {
+            game_state = PLAYING;
+            rest(200);
+        }
+
         update_physics();
         draw();
         rest(20);
