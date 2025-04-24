@@ -6,7 +6,8 @@
 #define SCREEN_H 1000
 #define GRAVITY 1
 #define JUMP_STRENGTH -15
-#define PLAYER_SPEED 5
+#define SCROLL_SPEED 2  // Vitesse de défilement automatique
+
 #define MAGENTA makecol(255, 0, 255)
 
 BITMAP *buffer;
@@ -14,7 +15,7 @@ BITMAP *background;
 BITMAP *player_original;
 BITMAP *player;
 
-int player_x = 100;
+int player_x = 100;  // Position fixe en X
 int player_y = 300;
 int player_speed_y = 0;
 int player_scale = 5; // Facteur de mise à l'échelle du personnage
@@ -72,26 +73,14 @@ void deinit() {
 }
 
 void update_physics() {
-    int moving = 0;
+    // Scrolling automatique
+    world_x += SCROLL_SPEED;
 
-    if (key[KEY_D]) {
-        player_x += PLAYER_SPEED;
-        moving = 1;
-        world_x += PLAYER_SPEED;
+    // Limites du scrolling (si ton background est plus large que SCREEN_W)
+    // Si tu veux un scrolling infini, tu peux supprimer cette limite
+    if (world_x > background->w - SCREEN_W) {
+        world_x = background->w - SCREEN_W;
     }
-    if (key[KEY_A]) {
-        player_x -= PLAYER_SPEED;
-        moving = 1;
-        world_x -= PLAYER_SPEED;
-    }
-
-    // Limites du scrolling
-    if (world_x < 0) world_x = 0;
-    if (world_x > SCREEN_W) world_x = SCREEN_W;
-
-    // Limites du joueur
-    if (player_x < 0) player_x = 0;
-    if (player_x > SCREEN_W - player->w) player_x = SCREEN_W - player->w;
 
     // Saut possible à tout moment (type "vol battement")
     if (key[KEY_SPACE]) {
@@ -150,7 +139,7 @@ void draw() {
     // Dessine le fond défilant
     draw_sprite(buffer, background, -world_x, 0);
 
-    // Dessine le personnage
+    // Dessine le personnage (position X fixe)
     for (int y = 0; y < player->h; y++) {
         for (int x = 0; x < player->w; x++) {
             int color = getpixel(player, x, y);
