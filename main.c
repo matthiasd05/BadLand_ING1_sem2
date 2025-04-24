@@ -116,9 +116,9 @@ void update_physics() {
     if (game_started) {
         world_x += SCROLL_SPEED;
 
-        // Limites du scrolling
-        if (world_x > background->w - GAME_SCREEN_W) {
-            world_x = background->w - GAME_SCREEN_W;
+        // Répétition infinie du background
+        if (world_x >= background->w) {
+            world_x = 0;
         }
     }
 
@@ -168,7 +168,17 @@ void draw_timer() {
 }
 
 void draw_game() {
-    draw_sprite(buffer, background, -world_x, 0);
+    // Calcul de la position du background à dessiner
+    int bg_pos1 = -world_x;
+    int bg_pos2 = bg_pos1 + background->w;
+
+    // Dessine le premier background
+    draw_sprite(buffer, background, bg_pos1, 0);
+
+    // Si nécessaire, dessine le second background pour la répétition
+    if (bg_pos2 < GAME_SCREEN_W) {
+        draw_sprite(buffer, background, bg_pos2, 0);
+    }
 
     // Dessine le personnage (position X fixe)
     for (int y = 0; y < player->h; y++) {
