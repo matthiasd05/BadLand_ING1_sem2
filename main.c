@@ -6,11 +6,13 @@
 #define GAME_SCREEN_H 800
 #define GRAVITY 1
 #define JUMP_STRENGTH -15
-#define SCROLL_SPEED 2  // Vitesse de défilement automatique
+#define SCROLL_SPEED 2
 #define MAGENTA makecol(255, 0, 255)
 
 #define MENU 0
-#define PLAYING 1
+#define LEVEL_SELECTION 1
+#define PLAYING 2
+
 int game_state = MENU;
 
 BITMAP *buffer;
@@ -21,7 +23,7 @@ BITMAP *menu_background;
 BITMAP *play_button;
 BITMAP *play_button_hover;
 
-int player_x = 100;  // Position fixe en X
+int player_x = 100;
 int player_y = 300;
 int player_speed_y = 0;
 int player_scale = 5;
@@ -35,6 +37,9 @@ int my_mouse_x, my_mouse_y;
 int play_button_x, play_button_y;
 int play_button_width = 200;
 int play_button_height = 80;
+
+// Niveau (0=Facile, 1=Moyen, 2=Difficile)
+int selected_level = -1;
 
 BITMAP* copy_bitmap_with_transparency(BITMAP *src, int scale_factor) {
     int new_w = src->w / scale_factor;
@@ -112,38 +117,29 @@ void deinit() {
 void update_physics() {
     if (game_state != PLAYING) return;
 
-    // Scrolling automatique seulement quand le jeu a commencé
     if (game_started) {
         world_x += SCROLL_SPEED;
 
-        // Répétition infinie du background
         if (world_x >= background->w) {
             world_x = 0;
         }
     }
 
-    // Saut possible à tout moment
     if (key[KEY_SPACE]) {
         player_speed_y = JUMP_STRENGTH;
-
-        // Démarre le jeu et le timer au premier appui sur espace
         if (!game_started) {
             game_started = 1;
             start_time = time(NULL);
         }
     }
 
-    // Gravité
     player_speed_y += GRAVITY;
     player_y += player_speed_y;
 
-    // Collision sol
     if (player_y > GAME_SCREEN_H - player->h) {
         player_y = GAME_SCREEN_H - player->h;
         player_speed_y = 0;
     }
-
-    // Collision plafond
     if (player_y < 0) {
         player_y = 0;
         player_speed_y = 0;
@@ -168,19 +164,15 @@ void draw_timer() {
 }
 
 void draw_game() {
-    // Calcul de la position du background à dessiner
     int bg_pos1 = -world_x;
     int bg_pos2 = bg_pos1 + background->w;
 
-    // Dessine le premier background
     draw_sprite(buffer, background, bg_pos1, 0);
 
-    // Si nécessaire, dessine le second background pour la répétition
     if (bg_pos2 < GAME_SCREEN_W) {
         draw_sprite(buffer, background, bg_pos2, 0);
     }
 
-    // Dessine le personnage (position X fixe)
     for (int y = 0; y < player->h; y++) {
         for (int x = 0; x < player->w; x++) {
             int color = getpixel(player, x, y);
@@ -206,14 +198,13 @@ void draw_menu() {
     if (mouse_over_button) {
         draw_sprite(buffer, play_button_hover, play_button_x, play_button_y);
         if (mouse_b & 1) {
-            game_state = PLAYING;
+            game_state = LEVEL_SELECTION;
             rest(200);
         }
     } else {
         draw_sprite(buffer, play_button, play_button_x, play_button_y);
     }
 
-    // Ajout d'un message pour indiquer qu'on peut aussi commencer avec espace
     char *msg = "Ou appuyez sur ESPACE pour commencer";
     int text_width = text_length(font, msg);
     int text_x = (GAME_SCREEN_W - text_width) / 2;
@@ -222,12 +213,51 @@ void draw_menu() {
     textout_ex(buffer, font, msg, text_x, text_y, makecol(255, 255, 255), -1);
 }
 
+void draw_level_selection() {
+    clear_to_color(buffer, makecol(30, 30, 60));
+
+    textout_centre_ex(buffer, font, "Choisissez la difficulté", GAME_SCREEN_W/2, 100, makecol(255, 255, 255), -1);
+
+    int button_w = 200;
+    int button_h = 50;
+    int start_y = 200;
+
+    const char* levels[] = {"Facile", "Moyen", "Difficile"};
+
+    poll_mouse();
+    my_mouse_x = mouse_x;
+    my_mouse_y = mouse_y;
+
+    for (int i = 0; i < 3; i++) {
+        int button_x = (GAME_SCREEN_W - button_w) / 2;
+        int button_y = start_y + i * 100;
+
+        int mouse_over = (my_mouse_x >= button_x && my_mouse_x <= button_x + button_w &&
+                          my_mouse_y >= button_y && my_mouse_y <= button_y + button_h);
+
+        if (mouse_over) {
+            rectfill(buffer, button_x, button_y, button_x + button_w, button_y + button_h, makecol(100, 100, 200));
+            if (mouse_b & 1) {
+                selected_level = i;
+                game_state = PLAYING;
+                rest(200);
+            }
+        } else {
+            rectfill(buffer, button_x, button_y, button_x + button_w, button_y + button_h, makecol(70, 70, 150));
+        }
+
+        textout_centre_ex(buffer, font, levels[i], GAME_SCREEN_W/2, button_y + 15, makecol(255, 255, 255), -1);
+    }
+}
+
 void draw() {
     clear_bitmap(buffer);
 
     if (game_state == MENU) {
         draw_menu();
-    } else {
+    } else if (game_state == LEVEL_SELECTION) {
+        draw_level_selection();
+    } else if (game_state == PLAYING) {
         draw_game();
     }
 
@@ -240,9 +270,8 @@ int main() {
     while (!key[KEY_ESC]) {
         show_mouse(screen);
 
-        // Permet de commencer le jeu avec espace depuis le menu
         if (game_state == MENU && key[KEY_SPACE]) {
-            game_state = PLAYING;
+            game_state = LEVEL_SELECTION;
             rest(200);
         }
 
