@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <time.h>
 
-#define GAME_SCREEN_W 1000
+#define GAME_SCREEN_W 800
 #define GAME_SCREEN_H 600
 #define GRAVITY 1
 #define JUMP_STRENGTH -15
