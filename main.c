@@ -71,9 +71,22 @@ void init() {
     background = load_bitmap("background.bmp", NULL);
     player_original = load_bitmap("player.bmp", NULL);
 
-    menu_background = load_bitmap("menu_bg.bmp", NULL);
     play_button = load_bitmap("play_button.bmp", NULL);
     play_button_hover = load_bitmap("play_button_hover.bmp", NULL);
+
+    BITMAP *temp_menu_bg = load_bitmap("menu_background.bmp", NULL);
+    if (temp_menu_bg) {
+        menu_background = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
+        stretch_blit(temp_menu_bg, menu_background,
+                     0, 0, temp_menu_bg->w, temp_menu_bg->h,
+                     0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
+        destroy_bitmap(temp_menu_bg);
+    } else {
+        menu_background = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
+        clear_to_color(menu_background, makecol(50, 50, 100));
+        textout_centre_ex(menu_background, font, "BADLAND GAME", GAME_SCREEN_W/2, GAME_SCREEN_H/3, makecol(255, 255, 255), -1);
+    }
+
 
     if (!menu_background) {
         menu_background = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
@@ -101,7 +114,8 @@ void init() {
     player = copy_bitmap_with_transparency(player_original, player_scale);
 
     play_button_x = (GAME_SCREEN_W - play_button_width) / 2;
-    play_button_y = GAME_SCREEN_H / 2;
+    play_button_y = GAME_SCREEN_H / 2 + 80;
+
 }
 
 void deinit() {
