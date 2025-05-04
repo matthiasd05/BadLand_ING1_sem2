@@ -172,7 +172,7 @@ void update_physics() {
                 int py = new_y + player->h;
 
                 if (py < GAME_SCREEN_H) {
-                    int color = getpixel(map_overlay, px, py);
+                    int color = getpixel(map_overlay, px + world_x, py);
                     if (color == makecol(0, 0, 0)) {
                         collision = 1;
                         break;
@@ -203,6 +203,37 @@ void update_physics() {
                 player_speed_y = 0;
             } else {
                 player_y = new_y;
+            }
+            // Détection de mur horizontal devant le joueur (uniquement en niveau facile avec map)
+            if (map_overlay && selected_level == 0) {
+                int player_front_x = player_x + player->w; // bord droit du joueur
+                int map_check_x = player_front_x + world_x;
+
+                int collision_front = 0;
+                for (int y = 0; y < player->h; y++) {
+                    int map_y = player_y + y;
+
+                    if (map_check_x >= 0 && map_check_x < map_overlay->w &&
+                        map_y >= 0 && map_y < map_overlay->h) {
+
+                        int color = getpixel(map_overlay, map_check_x, map_y);
+                        if (color == makecol(0, 0, 0)) {
+                            collision_front = 1;
+                            break;
+                        }
+                        }
+                }
+
+                if (collision_front) {
+                    // Mort du joueur
+                    game_state = MENU;
+                    game_started = 0;
+                    world_x = 0;
+                    player_y = 300;
+                    player_speed_y = 0;
+                    rest(500); // petite pause avant retour
+                    return; // on sort de update_physics
+                }
             }
         }
     } else {
