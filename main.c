@@ -195,6 +195,7 @@ void update_physics() {
                     if (color == makecol(0, 0, 0)) {
                         collision = 1;
                         break;
+
                     }
                 }
             }
