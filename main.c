@@ -257,9 +257,14 @@ void draw_game() {
         draw_sprite(buffer, background, bg_pos2, 0);
     }
 
-    if (selected_level == 0) {
-        draw_sprite(buffer, map_overlay, 0, 0); // Dessinée par-dessus le fond
+    int map_pos1 = -world_x;
+    int map_pos2 = map_pos1 + map_overlay->w;
+
+    draw_sprite(buffer, map_overlay, map_pos1, 0);
+    if (map_pos2 < GAME_SCREEN_W) {
+        draw_sprite(buffer, map_overlay, map_pos2, 0);
     }
+
 
 
     for (int y = 0; y < player->h; y++) {
