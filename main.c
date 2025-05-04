@@ -181,7 +181,7 @@ void init() {
 }
 
 void deinit() {
-    destroy_bitmap(buffer);
+    destroy_bitmap(buffer); // libère la memoire des buffers graphiques
     destroy_bitmap(background);
     destroy_bitmap(badland_logo);
     destroy_bitmap(player_original);
@@ -199,9 +199,10 @@ void deinit() {
 }
 
 void update_physics() {
-    if (game_state != PLAYING) return;
 
-    if (game_started) {
+    if (game_state != PLAYING) return;  // Vérifie si le jeu est dans l'état PLAYING, sinon ne fait rien
+
+    if (game_started) {   // Gère le scrolling du monde (décor qui défile)
         world_x += SCROLL_SPEED;
 
         if (world_x >= background->w) {
@@ -209,7 +210,7 @@ void update_physics() {
         }
     }
 
-    if (key[KEY_SPACE]) {
+    if (key[KEY_SPACE]) {  // Gère le saut du joueur avec la barre d'espace
         player_speed_y = JUMP_STRENGTH;
         if (!game_started) {
             game_started = 1;
@@ -217,7 +218,7 @@ void update_physics() {
         }
     }
 
-    player_speed_y += GRAVITY;
+    player_speed_y += GRAVITY; // Applique la gravité à la vitesse verticale du joueur
 
     // Tentative de déplacement vertical
     int new_y = player_y + player_speed_y;
