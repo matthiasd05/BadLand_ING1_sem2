@@ -20,6 +20,7 @@ BITMAP *background;
 BITMAP *player_original;
 BITMAP *player;
 BITMAP *menu_background;
+BITMAP *level_selection_background;
 BITMAP *play_button;
 BITMAP *play_button_hover;
 BITMAP *map_overlay = NULL;
@@ -88,6 +89,19 @@ void init() {
         textout_centre_ex(menu_background, font, "BADLAND GAME", GAME_SCREEN_W/2, GAME_SCREEN_H/3, makecol(255, 255, 255), -1);
     }
 
+    BITMAP *temp_level_bg = load_bitmap("level_selection_background.bmp", NULL);
+    if (temp_level_bg) {
+        level_selection_background = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
+        stretch_blit(temp_level_bg, level_selection_background,
+                     0, 0, temp_level_bg->w, temp_level_bg->h,
+                     0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
+        destroy_bitmap(temp_level_bg);
+    } else {
+        level_selection_background = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
+        clear_to_color(level_selection_background, makecol(30, 30, 60));
+    }
+
+
 
     if (!menu_background) {
         menu_background = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
@@ -133,6 +147,7 @@ void deinit() {
     destroy_bitmap(player_original);
     destroy_bitmap(player);
     destroy_bitmap(menu_background);
+    destroy_bitmap(level_selection_background);
     destroy_bitmap(play_button);
     destroy_bitmap(play_button_hover);
     destroy_bitmap(map_overlay);
@@ -340,7 +355,7 @@ void draw_menu() {
 }
 
 void draw_level_selection() {
-    clear_to_color(buffer, makecol(30, 30, 60));
+    draw_sprite(buffer, level_selection_background, 0, 0);
 
     textout_centre_ex(buffer, font, "Choisissez la difficulté", GAME_SCREEN_W/2, 100, makecol(255, 255, 255), -1);
 
