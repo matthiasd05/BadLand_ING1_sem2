@@ -17,6 +17,7 @@ int game_state = MENU;
 
 BITMAP *buffer;
 BITMAP *background;
+BITMAP *badland_logo;
 BITMAP *player_original;
 BITMAP *player;
 BITMAP *menu_background;
@@ -75,6 +76,25 @@ void init() {
 
     play_button = load_bitmap("play_button.bmp", NULL);
     play_button_hover = load_bitmap("play_button_hover.bmp", NULL);
+
+    BITMAP *original_logo = load_bitmap("badland_logo.bmp", NULL);
+    if (!original_logo) {
+        allegro_message("Erreur lors du chargement du logo badland_logo.bmp !");
+        exit(1);
+    }
+
+    // Redimensionner à 60% de la largeur de l’écran
+    int new_logo_width = GAME_SCREEN_W * 0.6;
+    int new_logo_height = original_logo->h * new_logo_width / original_logo->w;
+
+    badland_logo = create_bitmap(new_logo_width, new_logo_height);
+    stretch_blit(original_logo, badland_logo,
+                 0, 0, original_logo->w, original_logo->h,
+                 0, 0, new_logo_width, new_logo_height);
+
+    destroy_bitmap(original_logo);
+
+
 
     BITMAP *temp_menu_bg = load_bitmap("menu_background.bmp", NULL);
     if (temp_menu_bg) {
@@ -137,13 +157,23 @@ void init() {
     player = copy_bitmap_with_transparency(player_original, player_scale);
 
     play_button_x = (GAME_SCREEN_W - play_button_width) / 2;
-    play_button_y = GAME_SCREEN_H / 2 + 80;
+
+    int logo_height = badland_logo ? badland_logo->h : 150;  // Hauteur estimée si logo non chargé
+    int spacing_between = 20;  // espace logo <-> bouton
+    int spacing_text = 20;     // espace bouton <-> texte
+
+    int total_block_height = logo_height + play_button_height + spacing_between + spacing_text + text_height(font);
+    int top_of_block = (GAME_SCREEN_H - total_block_height) / 2;
+
+    play_button_y = top_of_block + logo_height + spacing_between;
+
 
 }
 
 void deinit() {
     destroy_bitmap(buffer);
     destroy_bitmap(background);
+    destroy_bitmap(badland_logo);
     destroy_bitmap(player_original);
     destroy_bitmap(player);
     destroy_bitmap(menu_background);
@@ -333,6 +363,14 @@ void draw_menu() {
     my_mouse_x = mouse_x;
     my_mouse_y = mouse_y;
 
+    // Affichage du logo (centré horizontalement, au-dessus du bouton)
+    if (badland_logo) {
+        int logo_x = (GAME_SCREEN_W - badland_logo->w) / 2;
+        int logo_y = play_button_y - 20 - badland_logo->h;  // juste au-dessus du bouton
+        draw_sprite(buffer, badland_logo, logo_x, logo_y);
+    }
+
+    // Détection du survol du bouton
     int mouse_over_button = (my_mouse_x >= play_button_x && my_mouse_x <= play_button_x + play_button_width &&
                              my_mouse_y >= play_button_y && my_mouse_y <= play_button_y + play_button_height);
 
@@ -346,13 +384,16 @@ void draw_menu() {
         draw_sprite(buffer, play_button, play_button_x, play_button_y);
     }
 
+    // Affichage du texte d'instruction sous le bouton
     char *msg = "Ou appuyez sur ESPACE pour commencer";
     int text_width = text_length(font, msg);
     int text_x = (GAME_SCREEN_W - text_width) / 2;
-    int text_y = play_button_y + play_button_height + 30;
+    int text_y = play_button_y + play_button_height + 10;
 
     textout_ex(buffer, font, msg, text_x, text_y, makecol(255, 255, 255), -1);
 }
+
+
 
 void draw_level_selection() {
     draw_sprite(buffer, level_selection_background, 0, 0);
