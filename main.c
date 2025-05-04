@@ -22,6 +22,7 @@ BITMAP *player;
 BITMAP *menu_background;
 BITMAP *play_button;
 BITMAP *play_button_hover;
+BITMAP *map_overlay = NULL;
 
 int player_x = 100;
 int player_y = 300;
@@ -111,6 +112,14 @@ void init() {
         exit(1);
     }
 
+    map_overlay = load_bitmap("map_level1.bmp", NULL);
+    if (!map_overlay) {
+        // Map optionnelle, pas critique, on peut continuer
+        map_overlay = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
+        clear_to_color(map_overlay, makecol(0, 0, 0)); // ou ne rien faire
+    }
+
+
     player = copy_bitmap_with_transparency(player_original, player_scale);
 
     play_button_x = (GAME_SCREEN_W - play_button_width) / 2;
@@ -126,6 +135,7 @@ void deinit() {
     destroy_bitmap(menu_background);
     destroy_bitmap(play_button);
     destroy_bitmap(play_button_hover);
+    destroy_bitmap(map_overlay);
 }
 
 void update_physics() {
@@ -148,7 +158,67 @@ void update_physics() {
     }
 
     player_speed_y += GRAVITY;
-    player_y += player_speed_y;
+
+    // Tentative de déplacement vertical
+    int new_y = player_y + player_speed_y;
+
+    // Collision uniquement si niveau 1 avec map
+    if (map_overlay && selected_level == 0) {
+        int collision = 0;
+
+        if (player_speed_y > 0) { // DESCENTE
+            for (int x = 0; x < player->w; x++) {
+                int px = player_x + x;
+                int py = new_y + player->h;
+
+                if (py < GAME_SCREEN_H) {
+                    int color = getpixel(map_overlay, px, py);
+                    if (color == makecol(0, 0, 0)) {
+                        collision = 1;
+                        break;
+                    }
+                }
+            }
+
+            if (collision) {
+                player_speed_y = 0;
+            } else {
+                player_y = new_y;
+            }
+        } else if (player_speed_y < 0) { // MONTÉE
+            for (int x = 0; x < player->w; x++) {
+                int px = player_x + x;
+                int py = new_y;
+
+                if (py >= 0) {
+                    int color = getpixel(map_overlay, px, py);
+                    if (color == makecol(0, 0, 0)) {
+                        collision = 1;
+                        break;
+                    }
+                }
+            }
+
+            if (collision) {
+                player_speed_y = 0;
+            } else {
+                player_y = new_y;
+            }
+        }
+    } else {
+        // Comportement normal (pas de map)
+        player_y = new_y;
+
+        if (player_y > GAME_SCREEN_H - player->h) {
+            player_y = GAME_SCREEN_H - player->h;
+            player_speed_y = 0;
+        }
+        if (player_y < 0) {
+            player_y = 0;
+            player_speed_y = 0;
+        }
+    }
+
 
     if (player_y > GAME_SCREEN_H - player->h) {
         player_y = GAME_SCREEN_H - player->h;
@@ -186,6 +256,11 @@ void draw_game() {
     if (bg_pos2 < GAME_SCREEN_W) {
         draw_sprite(buffer, background, bg_pos2, 0);
     }
+
+    if (selected_level == 0) {
+        draw_sprite(buffer, map_overlay, 0, 0); // Dessinée par-dessus le fond
+    }
+
 
     for (int y = 0; y < player->h; y++) {
         for (int x = 0; x < player->w; x++) {

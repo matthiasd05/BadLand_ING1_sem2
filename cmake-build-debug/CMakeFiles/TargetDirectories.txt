@@ -1,3 +1,3 @@
-C:/Users/FlowUp/CLionProjects/Badland_ING1_sem2/cmake-build-debug/CMakeFiles/Badland_ING1_sem2.dir
-C:/Users/FlowUp/CLionProjects/Badland_ING1_sem2/cmake-build-debug/CMakeFiles/edit_cache.dir
-C:/Users/FlowUp/CLionProjects/Badland_ING1_sem2/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+C:/Users/FlowUp/CLionProjects/BadLand_ING1_sem2/cmake-build-debug/CMakeFiles/Badland_ING1_sem2.dir
+C:/Users/FlowUp/CLionProjects/BadLand_ING1_sem2/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/FlowUp/CLionProjects/BadLand_ING1_sem2/cmake-build-debug/CMakeFiles/rebuild_cache.dir
