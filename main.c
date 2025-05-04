@@ -199,18 +199,11 @@ void deinit() {
 }
 
 void update_physics() {
+    if (game_state != PLAYING) return;
 
-    if (game_state != PLAYING) return;  // Vérifie si le jeu est dans l'état PLAYING, sinon ne fait rien
+    static int player_blocked_right = 0;
 
-    if (game_started) {   // Gère le scrolling du monde (décor qui défile)
-        world_x += SCROLL_SPEED;
-
-        if (world_x >= background->w) {
-            world_x = 0;
-        }
-    }
-
-    if (key[KEY_SPACE]) {  // Gère le saut du joueur avec la barre d'espace
+    if (key[KEY_SPACE]) {
         player_speed_y = JUMP_STRENGTH;
         if (!game_started) {
             game_started = 1;
@@ -218,88 +211,79 @@ void update_physics() {
         }
     }
 
-    player_speed_y += GRAVITY; // Applique la gravité à la vitesse verticale du joueur
-
-    // Tentative de déplacement vertical
+    player_speed_y += GRAVITY;
     int new_y = player_y + player_speed_y;
 
-    // Collision uniquement si niveau 1 avec map
+    player_blocked_right = 0;
+
     if (map_overlay && selected_level == 0) {
         int collision = 0;
 
-        if (player_speed_y > 0) { // DESCENTE
+        // COLLISION BAS
+        if (player_speed_y > 0) {
             for (int x = 0; x < player->w; x++) {
-                int px = player_x + x;
+                int px = player_x + x + world_x;
                 int py = new_y + player->h;
-
-                if (py < GAME_SCREEN_H) {
-                    int color = getpixel(map_overlay, px + world_x, py);
-                    if (color == makecol(0, 0, 0)) {
-                        collision = 1;
-                        break;
-                    }
-                }
-            }
-
-            if (collision) {
-                player_speed_y = 0;
-            } else {
-                player_y = new_y;
-            }
-        } else if (player_speed_y < 0) { // MONTÉE
-            for (int x = 0; x < player->w; x++) {
-                int px = player_x + x;
-                int py = new_y;
-
-                if (py >= 0) {
+                if (py < GAME_SCREEN_H && px >= 0 && px < map_overlay->w) {
                     int color = getpixel(map_overlay, px, py);
                     if (color == makecol(0, 0, 0)) {
                         collision = 1;
                         break;
-
                     }
                 }
             }
-
             if (collision) {
                 player_speed_y = 0;
             } else {
                 player_y = new_y;
             }
-            // Détection de mur horizontal devant le joueur (uniquement en niveau facile avec map)
-            if (map_overlay && selected_level == 0) {
-                int player_front_x = player_x + player->w; // bord droit du joueur
-                int map_check_x = player_front_x + world_x;
-
-                int collision_front = 0;
-                for (int y = 0; y < player->h; y++) {
-                    int map_y = player_y + y;
-
-                    if (map_check_x >= 0 && map_check_x < map_overlay->w &&
-                        map_y >= 0 && map_y < map_overlay->h) {
-
-                        int color = getpixel(map_overlay, map_check_x, map_y);
-                        if (color == makecol(0, 0, 0)) {
-                            collision_front = 1;
-                            break;
-                        }
-                        }
+        }
+        // COLLISION HAUT
+        else if (player_speed_y < 0) {
+            for (int x = 0; x < player->w; x++) {
+                int px = player_x + x + world_x;
+                int py = new_y;
+                if (py >= 0 && px >= 0 && px < map_overlay->w) {
+                    int color = getpixel(map_overlay, px, py);
+                    if (color == makecol(0, 0, 0)) {
+                        collision = 1;
+                        break;
+                    }
                 }
+            }
+            if (collision) {
+                player_speed_y = 0;
+            } else {
+                player_y = new_y;
+            }
+        } else {
+            player_y = new_y;
+        }
 
-                if (collision_front) {
-                    // Mort du joueur
-                    game_state = MENU;
-                    game_started = 0;
-                    world_x = 0;
-                    player_y = 300;
-                    player_speed_y = 0;
-                    rest(500); // petite pause avant retour
-                    return; // on sort de update_physics
+        // DÉTECTION DU MUR À DROITE
+        int player_front_x = player_x + player->w + world_x;
+        int collision_front = 0;
+
+        for (int y = 0; y < player->h; y++) {
+            int map_y = player_y + y;
+            if (player_front_x >= 0 && player_front_x < map_overlay->w &&
+                map_y >= 0 && map_y < map_overlay->h) {
+                int color = getpixel(map_overlay, player_front_x, map_y);
+                if (color == makecol(0, 0, 0)) {
+                    collision_front = 1;
+                    break;
                 }
             }
         }
+
+        if (collision_front) {
+            player_blocked_right = 1;
+        } else {
+            player_blocked_right = 0;
+        }
+
     } else {
-        // Comportement normal (pas de map)
+        // Pas de map : libre
         player_y = new_y;
 
         if (player_y > GAME_SCREEN_H - player->h) {
@@ -312,7 +296,7 @@ void update_physics() {
         }
     }
 
-
+    // Sécurité verticale
     if (player_y > GAME_SCREEN_H - player->h) {
         player_y = GAME_SCREEN_H - player->h;
         player_speed_y = 0;
@@ -321,7 +305,20 @@ void update_physics() {
         player_y = 0;
         player_speed_y = 0;
     }
+
+    // SCROLLING
+    if (game_started) {
+        if (!player_blocked_right) {
+            world_x += SCROLL_SPEED;
+            if (world_x >= background->w) {
+                world_x = 0;
+            }
+        }
+        // Si bloqué, world_x ne bouge pas : effet "bloqué dans la map"
+    }
 }
+
+
 
 void draw_timer() {
     if (game_started) {
