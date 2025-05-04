@@ -25,12 +25,17 @@ BITMAP *level_selection_background;
 BITMAP *play_button;
 BITMAP *play_button_hover;
 BITMAP *map_overlay = NULL;
+BITMAP *player1_original;
+BITMAP *player2_original;
+BITMAP *player1;
+BITMAP *player2;
 
 int player_x = 100;
 int player_y = 300;
 int player_speed_y = 0;
-int player_scale = 5;
+int player_scale = 8;
 int world_x = 0;
+int animation_frame = 0;
 
 int game_started = 0;
 time_t start_time = 0;
@@ -76,6 +81,9 @@ void init() {
 
     play_button = load_bitmap("play_button.bmp", NULL);
     play_button_hover = load_bitmap("play_button_hover.bmp", NULL);
+
+    player1_original = load_bitmap("player1.bmp", NULL);
+    player2_original = load_bitmap("player2.bmp", NULL);
 
     BITMAP *original_logo = load_bitmap("badland_logo.bmp", NULL);
     if (!original_logo) {
@@ -155,6 +163,8 @@ void init() {
 
 
     player = copy_bitmap_with_transparency(player_original, player_scale);
+    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
 
     play_button_x = (GAME_SCREEN_W - play_button_width) / 2;
 
@@ -181,6 +191,11 @@ void deinit() {
     destroy_bitmap(play_button);
     destroy_bitmap(play_button_hover);
     destroy_bitmap(map_overlay);
+    destroy_bitmap(player1_original);
+    destroy_bitmap(player2_original);
+    destroy_bitmap(player1);
+    destroy_bitmap(player2);
+
 }
 
 void update_physics() {
@@ -354,6 +369,24 @@ void draw_game() {
     }
 
     draw_timer();
+    // Sélection du sprite actif
+    BITMAP *current_sprite = player;
+
+    if (key[KEY_SPACE]) {
+        animation_frame++;
+        if ((animation_frame / 5) % 2 == 0) {
+            current_sprite = player1;
+        } else {
+            current_sprite = player2;
+        }
+    } else {
+        animation_frame = 0;
+        current_sprite = player;
+    }
+
+    // Dessiner le sprite choisi
+    masked_blit(current_sprite, buffer, 0, 0, player_x, player_y, current_sprite->w, current_sprite->h);
+
 }
 
 void draw_menu() {
