@@ -32,7 +32,8 @@ BITMAP *player1_original;
 BITMAP *player2_original;
 BITMAP *player1;
 BITMAP *player2;
-FONT *font_large;
+
+
 int player_x = 100;
 int player_y = 300;
 int player_speed_y = 0;
