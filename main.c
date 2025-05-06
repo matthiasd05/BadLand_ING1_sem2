@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <time.h>
 
+
+
 #define GAME_SCREEN_W 800
 #define GAME_SCREEN_H 600
 #define GRAVITY 1
@@ -12,6 +14,7 @@
 #define MENU 0
 #define LEVEL_SELECTION 1
 #define PLAYING 2
+
 
 int game_state = MENU;
 
@@ -29,7 +32,7 @@ BITMAP *player1_original;
 BITMAP *player2_original;
 BITMAP *player1;
 BITMAP *player2;
-
+FONT *font_large;
 int player_x = 100;
 int player_y = 300;
 int player_speed_y = 0;
@@ -90,7 +93,6 @@ void init() {
         allegro_message("Erreur lors du chargement du logo badland_logo.bmp !");
         exit(1);
     }
-
     // Redimensionner à 60% de la largeur de l’écran
     int new_logo_width = GAME_SCREEN_W * 0.6;
     int new_logo_height = original_logo->h * new_logo_width / original_logo->w;
@@ -101,7 +103,6 @@ void init() {
                  0, 0, new_logo_width, new_logo_height);
 
     destroy_bitmap(original_logo);
-
 
 
     BITMAP *temp_menu_bg = load_bitmap("menu_background.bmp", NULL);
@@ -203,6 +204,7 @@ void update_physics() {
 
     static int player_blocked_right = 0;
 
+    // Gestion du saut du joueur
     if (key[KEY_SPACE]) {
         player_speed_y = JUMP_STRENGTH;
         if (!game_started) {
@@ -211,6 +213,7 @@ void update_physics() {
         }
     }
 
+    // Gestion de la gravité
     player_speed_y += GRAVITY;
     int new_y = player_y + player_speed_y;
 
@@ -238,7 +241,7 @@ void update_physics() {
                 player_y = new_y;
             }
         }
-        // COLLISION HAUT
+            // COLLISION HAUT
         else if (player_speed_y < 0) {
             for (int x = 0; x < player->w; x++) {
                 int px = player_x + x + world_x;
@@ -306,15 +309,53 @@ void update_physics() {
         player_speed_y = 0;
     }
 
-    // SCROLLING
+    // SCROLLING CONSTANT
     if (game_started) {
-        if (!player_blocked_right) {
-            world_x += SCROLL_SPEED;
-            if (world_x >= background->w) {
-                world_x = 0;
-            }
+        // Défilement constant du fond
+        world_x += SCROLL_SPEED;
+        if (world_x >= background->w) {
+            world_x = 0;
         }
-        // Si bloqué, world_x ne bouge pas : effet "bloqué dans la map"
+    }
+
+    if (player_blocked_right) {
+        player_x -= SCROLL_SPEED;
+
+        if (player_x + player->w < 0) {
+            int blink = 0;
+            clear_keybuf();
+            while (!key[KEY_ENTER]) {
+                // 1) Prépare le buffer
+                clear_bitmap(buffer);
+                draw_sprite(buffer, menu_background, 0, 0);
+
+                textout_centre_ex(buffer, font, "GAME OVER",
+                                  GAME_SCREEN_W/2,
+                                  GAME_SCREEN_H/2 - text_height(font),
+                                  makecol(255,0,0), -1);
+
+                if (blink) {
+                    textout_centre_ex(buffer, font, "Appuyer sur ENTRER pour quitter",
+                                      GAME_SCREEN_W/2,
+                                      GAME_SCREEN_H/2 + text_height(font),
+                                      makecol(255,255,255), -1);
+                }
+
+                blit(buffer, screen, 0,0, 0,0, GAME_SCREEN_W, GAME_SCREEN_H);
+
+                blink = !blink;
+                rest(500);
+            }
+
+            game_state      = MENU;
+            game_started    = 0;
+            selected_level  = -1;
+            player_x        = 100;
+            player_y        = 300;
+            world_x         = 0;
+            player_speed_y  = 0;
+            clear_keybuf();
+        }
     }
 }
 
