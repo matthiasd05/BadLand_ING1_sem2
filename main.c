@@ -14,6 +14,8 @@
 #define MENU 0
 #define LEVEL_SELECTION 1
 #define PLAYING 2
+#define END_SCREEN 3
+
 
 
 int game_state = MENU;
@@ -32,6 +34,8 @@ BITMAP *player1_original;
 BITMAP *player2_original;
 BITMAP *player1;
 BITMAP *player2;
+BITMAP *end_screen_image;
+
 
 
 int player_x = 100;
@@ -71,6 +75,16 @@ BITMAP* copy_bitmap_with_transparency(BITMAP *src, int scale_factor) {
 
     return result;
 }
+
+void init();
+void deinit();
+void update_physics();
+void show_end_screen();
+void draw_timer();
+void draw_game();
+void draw_menu();
+void draw_level_selection();
+void draw();
 
 void init() {
     allegro_init();
@@ -118,6 +132,17 @@ void init() {
         clear_to_color(menu_background, makecol(50, 50, 100));
         textout_centre_ex(menu_background, font, "BADLAND GAME", GAME_SCREEN_W/2, GAME_SCREEN_H/3, makecol(255, 255, 255), -1);
     }
+    BITMAP *temp_end = load_bitmap("terminer.bmp", NULL);
+    if (!temp_end) {
+        allegro_message("Erreur lors du chargement de terminer.bmp !");
+        exit(1);
+    }
+    end_screen_image = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
+    stretch_blit(temp_end, end_screen_image,
+                 0, 0, temp_end->w, temp_end->h,
+                 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
+    destroy_bitmap(temp_end);
+
 
     BITMAP *temp_level_bg = load_bitmap("level_selection_background.bmp", NULL);
     if (temp_level_bg) {
@@ -197,6 +222,8 @@ void deinit() {
     destroy_bitmap(player2_original);
     destroy_bitmap(player1);
     destroy_bitmap(player2);
+    destroy_bitmap(end_screen_image);
+
 
 }
 
@@ -327,13 +354,7 @@ void update_physics() {
             clear_keybuf();
             while (!key[KEY_ENTER]) {
                 // 1) Prépare le buffer
-                clear_bitmap(buffer);
-                draw_sprite(buffer, menu_background, 0, 0);
-
-                textout_centre_ex(buffer, font, "GAME OVER",
-                                  GAME_SCREEN_W/2,
-                                  GAME_SCREEN_H/2 - text_height(font),
-                                  makecol(255,0,0), -1);
+                show_end_screen();
 
                 if (blink) {
                     textout_centre_ex(buffer, font, "Appuyer sur ENTRER pour quitter",
@@ -347,20 +368,38 @@ void update_physics() {
                 blink = !blink;
                 rest(500);
             }
-
-            game_state      = MENU;
-            game_started    = 0;
-            selected_level  = -1;
-            player_x        = 100;
-            player_y        = 300;
-            world_x         = 0;
-            player_speed_y  = 0;
-            clear_keybuf();
         }
     }
 }
 
+void show_end_screen() {
+    int blink = 0;
+    clear_keybuf();
 
+    while (!key[KEY_ENTER]) {
+        clear_bitmap(buffer);
+        draw_sprite(buffer, end_screen_image, 0, 0);
+
+        if (blink) {
+            textout_centre_ex(buffer, font, "Appuyez sur ENTRER pour retourner au menu",
+                              GAME_SCREEN_W/2, GAME_SCREEN_H - 50, makecol(255,255,255), -1);
+        }
+
+        blit(buffer, screen, 0, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
+        blink = !blink;
+        rest(500);
+    }
+
+    // Réinitialisation du jeu
+    game_state = MENU;
+    game_started = 0;
+    selected_level = -1;
+    player_x = 100;
+    player_y = 300;
+    world_x = 0;
+    player_speed_y = 0;
+    clear_keybuf();
+}
 
 void draw_timer() {
     if (game_started) {
