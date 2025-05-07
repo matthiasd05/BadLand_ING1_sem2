@@ -35,6 +35,7 @@ BITMAP *player2_original;
 BITMAP *player1;
 BITMAP *player2;
 BITMAP *end_screen_image;
+SAMPLE *jungle_sound;
 
 
 
@@ -44,7 +45,7 @@ int player_speed_y = 0;
 int player_scale = 8;
 int world_x = 0;
 int animation_frame = 0;
-
+int music_volume = 128 ;
 int game_started = 0;
 time_t start_time = 0;
 int elapsed_seconds = 0;
@@ -53,6 +54,8 @@ int my_mouse_x, my_mouse_y;
 int play_button_x, play_button_y;
 int play_button_width = 200;
 int play_button_height = 80;
+int music_playing = 0;
+
 
 // Niveau (0=Facile, 1=Moyen, 2=Difficile)
 int selected_level = -1;
@@ -92,6 +95,7 @@ void init() {
     install_mouse();
     set_color_depth(32);
     set_gfx_mode(GFX_AUTODETECT_WINDOWED, GAME_SCREEN_W, GAME_SCREEN_H, 0, 0);
+    install_sound(DIGI_AUTODETECT, MIDI_NONE, NULL);
 
     buffer = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
     background = load_bitmap("background.bmp", NULL);
@@ -118,6 +122,17 @@ void init() {
                  0, 0, new_logo_width, new_logo_height);
 
     destroy_bitmap(original_logo);
+
+    install_sound(DIGI_AUTODETECT, MIDI_AUTODETECT, NULL);
+    jungle_sound = load_sample("jungle.wav");
+    if (!jungle_sound) {
+        allegro_message("Erreur : impossible de charger jungle.wav !");
+        exit(1);
+    }
+
+// Joue en boucle
+    play_sample(jungle_sound, 255, 128, 1000, TRUE); // volume max, pan centre, fréquence normale, en boucle
+
 
 
     BITMAP *temp_menu_bg = load_bitmap("menu_background.bmp", NULL);
@@ -367,6 +382,7 @@ void update_physics() {
 
                 blink = !blink;
                 rest(500);
+
             }
         }
     }
@@ -554,6 +570,13 @@ void draw() {
     } else if (game_state == PLAYING) {
         draw_game();
     }
+    if ((game_state == MENU || game_state == LEVEL_SELECTION) && !music_playing) {
+        play_sample(jungle_sound, music_volume, 128, 1000, TRUE);  // loop
+        music_playing = 1;
+    } else if ((game_state == PLAYING || game_state == END_SCREEN) && music_playing) {
+        stop_sample(jungle_sound);
+        music_playing = 0;
+    }
 
     blit(buffer, screen, 0, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
 }
@@ -566,6 +589,7 @@ int main() {
 
         if (game_state == MENU && key[KEY_SPACE]) {
             game_state = LEVEL_SELECTION;
+            SAMPLE *music = load_sample("musique_menu2.wav");
             rest(200);
         }
 
