@@ -95,6 +95,7 @@ void draw_game();
 void draw_menu();
 void draw_level_selection();
 void draw();
+void show_victory_screen();
 
 void init() {
     allegro_init();
