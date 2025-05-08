@@ -21,6 +21,7 @@ int game_state = MENU;
 
 BITMAP *buffer;
 BITMAP *background;
+BITMAP *background2;
 BITMAP *badland_logo;
 BITMAP *player_original;
 BITMAP *player;
@@ -42,9 +43,12 @@ SAMPLE* gameover_sound;
 SAMPLE *victoire_sound;
 BITMAP *winflag;
 BITMAP *victoire;
+BITMAP *obstacle;
 
 int winflag_x = 6000;  // position x dans le monde
-int winflag_y = 200;   // position y à l'écran
+int winflag_y = 200;// position y à l'écran
+int obstacle_x = 600;
+int obstacle_y = 200;
 int player_x = 100;
 int player_y = 300;
 int player_speed_y = 0;
@@ -63,7 +67,6 @@ int play_button_height = 80;
 int music_playing = 0;
 
 
-// Niveau (0=Facile, 1=Moyen, 2=Difficile)
 int selected_level = -1;
 
 BITMAP* copy_bitmap_with_transparency(BITMAP *src, int scale_factor) {
@@ -131,6 +134,13 @@ void init() {
 
     destroy_bitmap(original_logo);
 
+    background2 = load_bitmap("background2.bmp", NULL);
+    if (!background2) {
+        allegro_message("Erreur chargement background2.bmp !");
+        exit(1);
+    }
+
+
     jungle_sound = load_sample("jungle.wav");
     nature_sound = load_sample("nature.wav");
 
@@ -158,6 +168,12 @@ void init() {
     winflag = copy_bitmap_with_transparency(winflag, 2);
     if (!winflag) {
         allegro_message("Erreur chargement winflag.bmp !");
+        exit(1);
+    }
+    obstacle = load_bitmap("obstacle.bmp", NULL);
+    obstacle = copy_bitmap_with_transparency(obstacle, 2);
+    if (!obstacle) {
+        allegro_message("Erreur chargement obstacle.bmp !");
         exit(1);
     }
 
@@ -234,7 +250,7 @@ void init() {
         exit(1);
     }
 
-    map_overlay = load_bitmap("map_level1.bmp", NULL);
+
     if (!map_overlay) {
         // Map optionnelle, pas critique, on peut continuer
         map_overlay = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
@@ -283,6 +299,7 @@ void deinit() {
     destroy_bitmap(player1);
     destroy_bitmap(player2);
     destroy_bitmap(end_screen_image);
+    destroy_bitmap(background2);
 
 
 }
@@ -307,7 +324,7 @@ void update_physics() {
 
     player_blocked_right = 0;
 
-    if (map_overlay && selected_level == 0) {
+    if (map_overlay) {
         int collision = 0;
 
         // COLLISION BAS
@@ -448,8 +465,28 @@ void update_physics() {
         game_state = END_SCREEN;
         show_victory_screen();
     }
+    if (selected_level == 1) {
+        int player_right = player_x + player->w;
+        int player_bottom = player_y + player->h;
+
+        int obs_screen_x = obstacle_x - world_x;
+        int obs_right = obs_screen_x + obstacle->w;
+        int obs_bottom = obstacle_y + obstacle->h;
+
+        if (player_right > obs_screen_x &&
+            player_x < obs_right &&
+            player_bottom > obstacle_y &&
+            player_y < obs_bottom) {
+            // Collision avec obstacle
+            game_state = END_SCREEN;
+            show_end_screen();
+        }
+    }
 
 }
+
+
+
 
 
 void show_end_screen() {
@@ -536,7 +573,12 @@ void draw_game() {
     int bg_pos1 = -world_x;
     int bg_pos2 = bg_pos1 + background->w;
 
-    draw_sprite(buffer, background, bg_pos1, 0);
+    BITMAP *current_background = (selected_level == 1) ? background2 : background;
+    draw_sprite(buffer, current_background, bg_pos1, 0);
+
+    if (bg_pos2 < GAME_SCREEN_W) {
+        draw_sprite(buffer, current_background, bg_pos2, 0);
+    }
 
     int flag_screen_x = winflag_x - world_x;  // ajuster avec le scrolling
     draw_sprite(buffer, winflag, flag_screen_x, winflag_y);
@@ -551,6 +593,14 @@ void draw_game() {
     draw_sprite(buffer, map_overlay, map_pos1, 0);
     if (map_pos2 < GAME_SCREEN_W) {
         draw_sprite(buffer, map_overlay, map_pos2, 0);
+    }
+    if (selected_level == 1) {
+        int screen_x = obstacle_x - world_x;
+        draw_sprite(buffer, obstacle, screen_x, obstacle_y);
+        draw_sprite(buffer, obstacle, 100, 150);  // Premier obstacle
+        draw_sprite(buffer, obstacle, 300, 220);  // Deuxième obstacle
+        draw_sprite(buffer, obstacle, 500, 320);  // Troisième obstacle
+
     }
 
 
@@ -622,6 +672,31 @@ void draw_menu() {
 
     textout_ex(buffer, font, msg, text_x, text_y, makecol(255, 255, 255), -1);
 }
+void load_map_for_selected_level() {
+    if (map_overlay) destroy_bitmap(map_overlay);  // Nettoie l’ancienne map si besoin
+
+    switch (selected_level) {
+        case 0:
+            map_overlay = load_bitmap("map_level1.bmp", NULL);
+            play_music(nature_sound);
+
+            break;
+        case 1:
+            map_overlay = load_bitmap("map_level2.bmp", NULL);
+            play_music(nature_sound);
+            break;
+            // Ajoute d'autres niveaux ici
+        default:
+            map_overlay = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);  // Map vide par défaut
+            clear_to_color(map_overlay, makecol(0, 0, 0));
+            break;
+    }
+
+    if (!map_overlay) {
+        allegro_message("Erreur de chargement de la carte pour le niveau sélectionné !");
+        exit(1);
+    }
+}
 
 
 
@@ -680,13 +755,12 @@ void draw() {
         draw_menu();
     } else if (game_state == LEVEL_SELECTION) {
         draw_level_selection();
+        load_map_for_selected_level();
     } else if (game_state == PLAYING) {
         draw_game();
     }
     if (game_state == MENU || game_state == LEVEL_SELECTION) {
         play_music(jungle_sound);
-    } else if (game_state == PLAYING) {
-        play_music(nature_sound);  // musique d’action pendant le jeu
     }
 
     // Blit final
