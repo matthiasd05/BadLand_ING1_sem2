@@ -36,6 +36,9 @@ BITMAP *player1;
 BITMAP *player2;
 BITMAP *end_screen_image;
 SAMPLE *jungle_sound;
+SAMPLE *nature_sound;
+SAMPLE *current_music = NULL;  // Pointeur vers la musique en cours
+
 
 
 
@@ -123,15 +126,13 @@ void init() {
 
     destroy_bitmap(original_logo);
 
-    install_sound(DIGI_AUTODETECT, MIDI_AUTODETECT, NULL);
     jungle_sound = load_sample("jungle.wav");
-    if (!jungle_sound) {
-        allegro_message("Erreur : impossible de charger jungle.wav !");
+    nature_sound = load_sample("nature.wav");
+
+    if (!jungle_sound || !nature_sound) {
+        allegro_message("Erreur chargement musique !");
         exit(1);
     }
-
-// Joue en boucle
-    play_sample(jungle_sound, 255, 128, 1000, TRUE); // volume max, pan centre, fréquence normale, en boucle
 
 
 
@@ -219,6 +220,13 @@ void init() {
 
     play_button_y = top_of_block + logo_height + spacing_between;
 
+    jungle_sound = load_sample("jungle.wav");
+    nature_sound = load_sample("nature.wav");
+
+    if (!jungle_sound || !nature_sound) {
+        allegro_message("Erreur chargement musique !");
+        exit(1);
+    }
 
 }
 
@@ -435,6 +443,8 @@ void draw_timer() {
 }
 
 void draw_game() {
+
+
     int bg_pos1 = -world_x;
     int bg_pos2 = bg_pos1 + background->w;
 
@@ -559,10 +569,21 @@ void draw_level_selection() {
         textout_centre_ex(buffer, font, levels[i], GAME_SCREEN_W/2, button_y + 15, makecol(255, 255, 255), -1);
     }
 }
+void play_music(SAMPLE* music) {
+    if (current_music != music) {
+        stop_sample(current_music);  // Arrête l'ancienne musique si besoin
+        current_music = music;
+        if (current_music) {
+            play_sample(current_music, 255, 128, 1000, TRUE);
+        }
+    }
+}
+
 
 void draw() {
     clear_bitmap(buffer);
 
+    // Dessin de l'écran selon l'état du jeu
     if (game_state == MENU) {
         draw_menu();
     } else if (game_state == LEVEL_SELECTION) {
@@ -570,16 +591,16 @@ void draw() {
     } else if (game_state == PLAYING) {
         draw_game();
     }
-    if ((game_state == MENU || game_state == LEVEL_SELECTION) && !music_playing) {
-        play_sample(jungle_sound, music_volume, 128, 1000, TRUE);  // loop
-        music_playing = 1;
-    } else if ((game_state == PLAYING || game_state == END_SCREEN) && music_playing) {
-        stop_sample(jungle_sound);
-        music_playing = 0;
+    if (game_state == MENU || game_state == LEVEL_SELECTION) {
+        play_music(jungle_sound);
+    } else if (game_state == PLAYING) {
+        play_music(nature_sound);  // musique d’action pendant le jeu
     }
 
+    // Blit final
     blit(buffer, screen, 0, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
 }
+
 
 int main() {
     init();
