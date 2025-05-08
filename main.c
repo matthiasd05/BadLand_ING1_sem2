@@ -6,7 +6,7 @@
 
 #define GAME_SCREEN_W 800
 #define GAME_SCREEN_H 600
-#define GRAVITY 1
+#define GRAVITY 2
 #define JUMP_STRENGTH -15
 #define SCROLL_SPEED 2
 #define MAGENTA makecol(255, 0, 255)
@@ -38,6 +38,8 @@ BITMAP *end_screen_image;
 SAMPLE *jungle_sound;
 SAMPLE *nature_sound;
 SAMPLE *current_music = NULL;  // Pointeur vers la musique en cours
+SAMPLE* jump_sound;
+SAMPLE* gameover_sound;
 
 
 
@@ -45,7 +47,7 @@ SAMPLE *current_music = NULL;  // Pointeur vers la musique en cours
 int player_x = 100;
 int player_y = 300;
 int player_speed_y = 0;
-int player_scale = 8;
+int player_scale = 10;
 int world_x = 0;
 int animation_frame = 0;
 int music_volume = 128 ;
@@ -133,6 +135,17 @@ void init() {
         allegro_message("Erreur chargement musique !");
         exit(1);
     }
+    jump_sound = load_sample("jump.wav");
+    if (!jump_sound) {
+        allegro_message("Erreur de chargement du son de saut !");
+        exit(EXIT_FAILURE);
+    }
+    gameover_sound = load_sample("gameover.wav");
+    if (!gameover_sound) {
+        allegro_message("Erreur de chargement du son de game over !");
+        exit(EXIT_FAILURE);
+    }
+
 
 
 
@@ -399,13 +412,15 @@ void update_physics() {
 void show_end_screen() {
     int blink = 0;
     clear_keybuf();
+    stop_sample(nature_sound);
+    play_sample(gameover_sound, 255, 128, 1000, FALSE);
 
     while (!key[KEY_ENTER]) {
         clear_bitmap(buffer);
         draw_sprite(buffer, end_screen_image, 0, 0);
 
         if (blink) {
-            textout_centre_ex(buffer, font, "Appuyez sur ENTRER pour retourner au menu",
+            textout_centre_ex(buffer, font, "Restez Appuyé sur ENTRER pour retourner au menu",
                               GAME_SCREEN_W/2, GAME_SCREEN_H - 50, makecol(255,255,255), -1);
         }
 
@@ -479,6 +494,7 @@ void draw_game() {
 
     if (key[KEY_SPACE]) {
         animation_frame++;
+        play_sample(jump_sound, 20, 40, 1000, FALSE);
         if ((animation_frame / 5) % 2 == 0) {
             current_sprite = player1;
         } else {
@@ -574,7 +590,7 @@ void play_music(SAMPLE* music) {
         stop_sample(current_music);  // Arrête l'ancienne musique si besoin
         current_music = music;
         if (current_music) {
-            play_sample(current_music, 255, 128, 1000, TRUE);
+            play_sample(current_music, 500, 128, 1000, TRUE);
         }
     }
 }
