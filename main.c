@@ -40,10 +40,10 @@ SAMPLE *nature_sound;
 SAMPLE *current_music = NULL;  // Pointeur vers la musique en cours
 SAMPLE* jump_sound;
 SAMPLE* gameover_sound;
+BITMAP *winflag;
 
-
-
-
+int winflag_x = 6000;  // position x dans le monde
+int winflag_y = 200;   // position y à l'écran
 int player_x = 100;
 int player_y = 300;
 int player_speed_y = 0;
@@ -145,6 +145,13 @@ void init() {
         allegro_message("Erreur de chargement du son de game over !");
         exit(EXIT_FAILURE);
     }
+    winflag = load_bitmap("winflag.bmp", NULL);
+    winflag = copy_bitmap_with_transparency(winflag, 2);
+    if (!winflag) {
+        allegro_message("Erreur chargement winflag.bmp !");
+        exit(1);
+    }
+
 
 
 
@@ -407,7 +414,27 @@ void update_physics() {
             }
         }
     }
+    // Vérifie collision avec le drapeau de fin (winflag)
+    int player_right = player_x + player->w;
+    int player_bottom = player_y + player->h;
+
+    int flag_screen_x = winflag_x - world_x;  // position écran du drapeau
+    int flag_right = flag_screen_x + winflag->w;
+    int flag_bottom = winflag_y + winflag->h;
+
+    if (player_right > flag_screen_x &&
+        player_x < flag_right &&
+        player_bottom > winflag_y &&
+        player_y < flag_bottom) {
+
+        // Collision détectée → victoire
+        game_state = END_SCREEN;
+        play_sample(gameover_sound, 255, 128, 1000, FALSE); // Remplace par un son de victoire si tu en as un
+        show_end_screen();
+    }
+
 }
+
 
 void show_end_screen() {
     int blink = 0;
@@ -464,6 +491,9 @@ void draw_game() {
     int bg_pos2 = bg_pos1 + background->w;
 
     draw_sprite(buffer, background, bg_pos1, 0);
+
+    int flag_screen_x = winflag_x - world_x;  // ajuster avec le scrolling
+    draw_sprite(buffer, winflag, flag_screen_x, winflag_y);
 
     if (bg_pos2 < GAME_SCREEN_W) {
         draw_sprite(buffer, background, bg_pos2, 0);
