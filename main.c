@@ -3,7 +3,6 @@
 #include <time.h>
 
 
-
 #define GAME_SCREEN_W 800
 #define GAME_SCREEN_H 600
 #define GRAVITY 2
@@ -96,6 +95,7 @@ void draw_menu();
 void draw_level_selection();
 void draw();
 void show_victory_screen();
+void play_music(SAMPLE* music);
 
 void init() {
     allegro_init();
@@ -134,6 +134,7 @@ void init() {
     jungle_sound = load_sample("jungle.wav");
     nature_sound = load_sample("nature.wav");
 
+
     if (!jungle_sound || !nature_sound) {
         allegro_message("Erreur chargement musique !");
         exit(1);
@@ -160,10 +161,6 @@ void init() {
         exit(1);
     }
 
-
-
-
-
     BITMAP *temp_menu_bg = load_bitmap("menu_background.bmp", NULL);
     if (temp_menu_bg) {
         menu_background = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
@@ -188,10 +185,11 @@ void init() {
     destroy_bitmap(temp_end);
 
     BITMAP *temp_victory = load_bitmap("victoire.bmp", NULL);
-    if (!temp_end) {
+    if (!temp_victory) {
         allegro_message("Erreur lors du chargement de victoire.bmp !");
         exit(1);
     }
+
     victoire = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
     stretch_blit(temp_victory, victoire,
                  0, 0, temp_victory->w, temp_victory->h,
