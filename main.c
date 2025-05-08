@@ -40,9 +40,11 @@ SAMPLE *nature_sound;
 SAMPLE *current_music = NULL;  // Pointeur vers la musique en cours
 SAMPLE* jump_sound;
 SAMPLE* gameover_sound;
+SAMPLE *victoire_sound;
 BITMAP *winflag;
+BITMAP *victoire;
 
-int winflag_x = 6000;  // position x dans le monde
+int winflag_x = 300;  // position x dans le monde
 int winflag_y = 200;   // position y à l'écran
 int player_x = 100;
 int player_y = 300;
@@ -145,6 +147,11 @@ void init() {
         allegro_message("Erreur de chargement du son de game over !");
         exit(EXIT_FAILURE);
     }
+    victoire_sound = load_sample("victoire.wav");
+    if (!victoire_sound) {
+        allegro_message("Erreur de chargement du son de game over !");
+        exit(EXIT_FAILURE);
+    }
     winflag = load_bitmap("winflag.bmp", NULL);
     winflag = copy_bitmap_with_transparency(winflag, 2);
     if (!winflag) {
@@ -178,6 +185,17 @@ void init() {
                  0, 0, temp_end->w, temp_end->h,
                  0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
     destroy_bitmap(temp_end);
+
+    BITMAP *temp_victory = load_bitmap("victoire.bmp", NULL);
+    if (!temp_end) {
+        allegro_message("Erreur lors du chargement de victoire.bmp !");
+        exit(1);
+    }
+    victoire = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);
+    stretch_blit(temp_victory, victoire,
+                 0, 0, temp_victory->w, temp_victory->h,
+                 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
+    destroy_bitmap(temp_victory);
 
 
     BITMAP *temp_level_bg = load_bitmap("level_selection_background.bmp", NULL);
@@ -429,8 +447,7 @@ void update_physics() {
 
         // Collision détectée → victoire
         game_state = END_SCREEN;
-        play_sample(gameover_sound, 255, 128, 1000, FALSE); // Remplace par un son de victoire si tu en as un
-        show_end_screen();
+        show_victory_screen();
     }
 
 }
@@ -445,6 +462,36 @@ void show_end_screen() {
     while (!key[KEY_ENTER]) {
         clear_bitmap(buffer);
         draw_sprite(buffer, end_screen_image, 0, 0);
+
+        if (blink) {
+            textout_centre_ex(buffer, font, "Restez Appuyé sur ENTRER pour retourner au menu",
+                              GAME_SCREEN_W/2, GAME_SCREEN_H - 50, makecol(255,255,255), -1);
+        }
+
+        blit(buffer, screen, 0, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
+        blink = !blink;
+        rest(500);
+    }
+
+    // Réinitialisation du jeu
+    game_state = MENU;
+    game_started = 0;
+    selected_level = -1;
+    player_x = 100;
+    player_y = 300;
+    world_x = 0;
+    player_speed_y = 0;
+    clear_keybuf();
+}
+void show_victory_screen() {
+    int blink = 0;
+    clear_keybuf();
+    stop_sample(nature_sound);
+    play_sample(victoire_sound, 100, 128, 1000, FALSE);
+    while (!key[KEY_ENTER]) {
+        clear_bitmap(buffer);
+        draw_sprite(buffer, victoire, 0, 0);
+
 
         if (blink) {
             textout_centre_ex(buffer, font, "Restez Appuyé sur ENTRER pour retourner au menu",
@@ -620,7 +667,7 @@ void play_music(SAMPLE* music) {
         stop_sample(current_music);  // Arrête l'ancienne musique si besoin
         current_music = music;
         if (current_music) {
-            play_sample(current_music, 500, 128, 1000, TRUE);
+            play_sample(current_music, 250, 128, 1000, TRUE);
         }
     }
 }
