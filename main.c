@@ -44,7 +44,7 @@ SAMPLE *victoire_sound;
 BITMAP *winflag;
 BITMAP *victoire;
 
-int winflag_x = 300;  // position x dans le monde
+int winflag_x = 6000;  // position x dans le monde
 int winflag_y = 200;   // position y à l'écran
 int player_x = 100;
 int player_y = 300;
