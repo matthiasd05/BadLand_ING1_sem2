@@ -43,6 +43,7 @@ SAMPLE *current_music = NULL;  // Pointeur vers la musique en cours
 SAMPLE* jump_sound;
 SAMPLE* gameover_sound;
 SAMPLE *victoire_sound;
+SAMPLE *neige_sound;
 BITMAP *winflag;
 BITMAP *victoire;
 BITMAP *obstacle;
@@ -83,7 +84,7 @@ int obstacle_positions[MAX_OBSTACLES][2] = {
         {3850, 500},
         {4000, 50},
         {5100, 450},
-        {5350, 280},
+        {5380, 280},
         {5650, 450},
         {5900, 280},
 
@@ -167,9 +168,10 @@ void init() {
 
     jungle_sound = load_sample("jungle.wav");
     nature_sound = load_sample("nature.wav");
+    neige_sound = load_sample("neige.wav");
 
 
-    if (!jungle_sound || !nature_sound) {
+    if (!jungle_sound || !nature_sound || !neige_sound) {
         allegro_message("Erreur chargement musique !");
         exit(1);
     }
@@ -298,15 +300,6 @@ void init() {
     int top_of_block = (GAME_SCREEN_H - total_block_height) / 2;
 
     play_button_y = top_of_block + logo_height + spacing_between;
-
-    jungle_sound = load_sample("jungle.wav");
-    nature_sound = load_sample("nature.wav");
-
-    if (!jungle_sound || !nature_sound) {
-        allegro_message("Erreur chargement musique !");
-        exit(1);
-    }
-
 }
 
 void deinit() {
@@ -528,6 +521,7 @@ void show_end_screen() {
     int blink = 0;
     clear_keybuf();
     stop_sample(nature_sound);
+    stop_sample(neige_sound);
     play_sample(gameover_sound, 255, 128, 1000, FALSE);
 
     while (!key[KEY_ENTER]) {
@@ -558,6 +552,7 @@ void show_victory_screen() {
     int blink = 0;
     clear_keybuf();
     stop_sample(nature_sound);
+    stop_sample(neige_sound);
     play_sample(victoire_sound, 100, 128, 1000, FALSE);
     while (!key[KEY_ENTER]) {
         clear_bitmap(buffer);
@@ -729,7 +724,7 @@ void load_map_for_selected_level() {
             break;
         case 1:
             map_overlay = load_bitmap("map_level2.bmp", NULL);
-            play_music(nature_sound);
+            play_music(neige_sound);
             break;
             // Ajoute d'autres niveaux ici
         default:
@@ -822,7 +817,7 @@ int main() {
 
         if (game_state == MENU && key[KEY_SPACE]) {
             game_state = LEVEL_SELECTION;
-            SAMPLE *music = load_sample("musique_menu2.wav");
+
             rest(200);
         }
 
