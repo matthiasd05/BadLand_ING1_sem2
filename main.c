@@ -14,6 +14,8 @@
 #define LEVEL_SELECTION 1
 #define PLAYING 2
 #define END_SCREEN 3
+#define MAX_OBSTACLES 10
+#define NUM_LEVELS 3
 
 
 
@@ -45,10 +47,7 @@ BITMAP *winflag;
 BITMAP *victoire;
 BITMAP *obstacle;
 
-int winflag_x = 6000;  // position x dans le monde
-int winflag_y = 200;// position y à l'écran
-int obstacle_x = 600;
-int obstacle_y = 200;
+
 int player_x = 100;
 int player_y = 300;
 int player_speed_y = 0;
@@ -65,6 +64,31 @@ int play_button_x, play_button_y;
 int play_button_width = 200;
 int play_button_height = 80;
 int music_playing = 0;
+
+int winflag_positions[NUM_LEVELS][2] = {
+        {6000, 200},  // Niveau 0
+        {6050, 450},  // Niveau 1
+        {6000, 200}   // Niveau 2
+};
+
+
+
+
+
+int obstacle_positions[MAX_OBSTACLES][2] = {
+        {600, 200},
+        {2350, 100},
+        {2950, 450},
+        {3600, 50},
+        {3850, 500},
+        {4000, 50},
+        {5100, 450},
+        {5350, 280},
+        {5650, 450},
+        {5900, 280},
+
+};
+
 
 
 int selected_level = -1;
@@ -176,6 +200,8 @@ void init() {
         allegro_message("Erreur chargement obstacle.bmp !");
         exit(1);
     }
+
+
 
     BITMAP *temp_menu_bg = load_bitmap("menu_background.bmp", NULL);
     if (temp_menu_bg) {
@@ -449,39 +475,48 @@ void update_physics() {
         }
     }
     // Vérifie collision avec le drapeau de fin (winflag)
-    int player_right = player_x + player->w;
-    int player_bottom = player_y + player->h;
+    if (selected_level >= 0 && selected_level < NUM_LEVELS) {
+        int flag_world_x = winflag_positions[selected_level][0];
+        int flag_world_y = winflag_positions[selected_level][1];
 
-    int flag_screen_x = winflag_x - world_x;  // position écran du drapeau
-    int flag_right = flag_screen_x + winflag->w;
-    int flag_bottom = winflag_y + winflag->h;
+        int flag_screen_x = flag_world_x - world_x;
+        int flag_right = flag_screen_x + winflag->w;
+        int flag_bottom = flag_world_y + winflag->h;
 
-    if (player_right > flag_screen_x &&
-        player_x < flag_right &&
-        player_bottom > winflag_y &&
-        player_y < flag_bottom) {
+        int player_right = player_x + player->w;
+        int player_bottom = player_y + player->h;
 
-        // Collision détectée → victoire
-        game_state = END_SCREEN;
-        show_victory_screen();
+        if (player_right > flag_screen_x &&
+            player_x < flag_right &&
+            player_bottom > flag_world_y &&
+            player_y < flag_bottom) {
+            show_victory_screen();
+        }
     }
+
+
     if (selected_level == 1) {
         int player_right = player_x + player->w;
         int player_bottom = player_y + player->h;
 
-        int obs_screen_x = obstacle_x - world_x;
-        int obs_right = obs_screen_x + obstacle->w;
-        int obs_bottom = obstacle_y + obstacle->h;
+        for (int i = 0; i < MAX_OBSTACLES; i++) {
+            int obs_screen_x = obstacle_positions[i][0] - world_x;
+            int obs_screen_y = obstacle_positions[i][1];
+            int obs_right = obs_screen_x + obstacle->w;
+            int obs_bottom = obs_screen_y + obstacle->h;
 
-        if (player_right > obs_screen_x &&
-            player_x < obs_right &&
-            player_bottom > obstacle_y &&
-            player_y < obs_bottom) {
-            // Collision avec obstacle
-            game_state = END_SCREEN;
-            show_end_screen();
+            if (player_right > obs_screen_x &&
+                player_x < obs_right &&
+                player_bottom > obs_screen_y &&
+                player_y < obs_bottom) {
+                // Collision avec un obstacle
+                game_state = END_SCREEN;
+                show_end_screen();
+                break;
+            }
         }
     }
+
 
 }
 
@@ -580,8 +615,16 @@ void draw_game() {
         draw_sprite(buffer, current_background, bg_pos2, 0);
     }
 
-    int flag_screen_x = winflag_x - world_x;  // ajuster avec le scrolling
-    draw_sprite(buffer, winflag, flag_screen_x, winflag_y);
+    if (selected_level >= 0 && selected_level < NUM_LEVELS) {
+        int flag_x = winflag_positions[selected_level][0] - world_x;
+        int flag_y = winflag_positions[selected_level][1];
+
+        if (flag_x + winflag->w >= 0 && flag_x <= GAME_SCREEN_W) {
+            draw_sprite(buffer, winflag, flag_x, flag_y);
+        }
+    }
+
+
 
     if (bg_pos2 < GAME_SCREEN_W) {
         draw_sprite(buffer, background, bg_pos2, 0);
@@ -595,13 +638,16 @@ void draw_game() {
         draw_sprite(buffer, map_overlay, map_pos2, 0);
     }
     if (selected_level == 1) {
-        int screen_x = obstacle_x - world_x;
-        draw_sprite(buffer, obstacle, screen_x, obstacle_y);
-        draw_sprite(buffer, obstacle, 100, 150);  // Premier obstacle
-        draw_sprite(buffer, obstacle, 300, 220);  // Deuxième obstacle
-        draw_sprite(buffer, obstacle, 500, 320);  // Troisième obstacle
+        for (int i = 0; i < MAX_OBSTACLES; i++) {
+            int obs_screen_x = obstacle_positions[i][0] - world_x;
+            int obs_screen_y = obstacle_positions[i][1];
 
+            if (obs_screen_x + obstacle->w >= 0 && obs_screen_x < GAME_SCREEN_W) {
+                draw_sprite(buffer, obstacle, obs_screen_x, obs_screen_y);
+            }
+        }
     }
+
 
 
 
