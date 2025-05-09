@@ -5,7 +5,7 @@
 
 #define GAME_SCREEN_W 800
 #define GAME_SCREEN_H 600
-#define GRAVITY 2
+
 #define JUMP_STRENGTH -15
 #define SCROLL_SPEED 2
 #define MAGENTA makecol(255, 0, 255)
@@ -16,10 +16,13 @@
 #define END_SCREEN 3
 #define MAX_OBSTACLES 10
 #define NUM_LEVELS 3
+#define EGG_EFFECT_DURATION 25 // Durée de l'effet en secondes
+#define REDUCED_GRAVITY 1  // Gravité plus faible
 
 
 
 int game_state = MENU;
+int gravity = 2;
 
 BITMAP *buffer;
 BITMAP *background;
@@ -47,6 +50,14 @@ SAMPLE *neige_sound;
 BITMAP *winflag;
 BITMAP *victoire;
 BITMAP *obstacle;
+BITMAP *eggblue;
+
+
+int egg_x = 1500; // Position initiale dans le monde
+int egg_y = 300;
+int egg_active = 1; // 1 = actif, 0 = déjà collecté
+time_t egg_collected_time = 0;
+int player_small = 0;
 
 
 int player_x = 100;
@@ -203,6 +214,14 @@ void init() {
         exit(1);
     }
 
+    eggblue = load_bitmap("eggblue.bmp", NULL);
+    eggblue = copy_bitmap_with_transparency(eggblue, 2);
+    if (!eggblue) {
+        allegro_message("Erreur chargement eggblue.bmp !");
+        exit(1);
+    }
+
+
 
 
     BITMAP *temp_menu_bg = load_bitmap("menu_background.bmp", NULL);
@@ -338,7 +357,7 @@ void update_physics() {
     }
 
     // Gestion de la gravité
-    player_speed_y += GRAVITY;
+    player_speed_y += gravity;
     int new_y = player_y + player_speed_y;
 
     player_blocked_right = 0;
@@ -509,6 +528,34 @@ void update_physics() {
             }
         }
     }
+    // Vérifie si l'effet de l'œuf est actif et si la durée est dépassée
+    if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
+        player_scale = 10; // Restaure la taille normale
+        player = copy_bitmap_with_transparency(player_original, player_scale);
+        player_small = 0;
+        gravity = 1;  // Restaure la gravité normale
+    }
+
+// Vérifie la collision avec l'œuf
+    if (egg_active) {
+        int egg_screen_x = egg_x - world_x;
+        int player_right = player_x + player->w;
+        int player_bottom = player_y + player->h;
+
+        if (player_right > egg_screen_x &&
+            player_x < egg_screen_x + eggblue->w &&
+            player_bottom > egg_y &&
+            player_y < egg_y + eggblue->h) {
+
+            egg_active = 0; // Désactive l'œuf après collecte
+            player_scale = 40; // Réduit la taille
+            player = copy_bitmap_with_transparency(player_original, player_scale);
+            player_small = 1;
+            egg_collected_time = time(NULL); // Enregistre le temps
+            gravity = REDUCED_GRAVITY; // Réduit la gravité
+        }
+    }
+
 
 
 }
@@ -640,6 +687,11 @@ void draw_game() {
             if (obs_screen_x + obstacle->w >= 0 && obs_screen_x < GAME_SCREEN_W) {
                 draw_sprite(buffer, obstacle, obs_screen_x, obs_screen_y);
             }
+            if (egg_active) {
+                int egg_screen_x = egg_x - world_x;
+                draw_sprite(buffer, eggblue, egg_screen_x, egg_y);
+            }
+
         }
     }
 
