@@ -16,9 +16,9 @@
 #define END_SCREEN 3
 #define MAX_OBSTACLES 10
 #define NUM_LEVELS 3
-#define EGG_EFFECT_DURATION 25 // Durée de l'effet en secondes
+#define EGG_EFFECT_DURATION 30 // Durée de l'effet en secondes
 #define REDUCED_GRAVITY 1  // Gravité plus faible
-
+#define AUGM_GRAVITY 3
 
 
 int game_state = MENU;
@@ -51,6 +51,7 @@ BITMAP *winflag;
 BITMAP *victoire;
 BITMAP *obstacle;
 BITMAP *eggblue;
+BITMAP *eggred;
 
 
 int egg_x = 1500; // Position initiale dans le monde
@@ -58,15 +59,19 @@ int egg_y = 300;
 int egg_active = 1; // 1 = actif, 0 = déjà collecté
 time_t egg_collected_time = 0;
 int player_small = 0;
+int eggr_x = 3450; // Position initiale dans le monde
+int eggr_y = 450;
+int eggr_active = 1; // 1 = actif, 0 = déjà collecté
+
+
 
 
 int player_x = 100;
 int player_y = 300;
 int player_speed_y = 0;
-int player_scale = 10;
+int player_scale = 12;
 int world_x = 0;
 int animation_frame = 0;
-int music_volume = 128 ;
 int game_started = 0;
 time_t start_time = 0;
 int elapsed_seconds = 0;
@@ -75,7 +80,7 @@ int my_mouse_x, my_mouse_y;
 int play_button_x, play_button_y;
 int play_button_width = 200;
 int play_button_height = 80;
-int music_playing = 0;
+
 
 int winflag_positions[NUM_LEVELS][2] = {
         {6000, 200},  // Niveau 0
@@ -218,6 +223,13 @@ void init() {
     eggblue = copy_bitmap_with_transparency(eggblue, 2);
     if (!eggblue) {
         allegro_message("Erreur chargement eggblue.bmp !");
+        exit(1);
+    }
+
+    eggred = load_bitmap("eggred.bmp", NULL);
+    eggred = copy_bitmap_with_transparency(eggred, 2);
+    if (!eggred) {
+        allegro_message("Erreur chargement eggred.bmp !");
         exit(1);
     }
 
@@ -530,11 +542,12 @@ void update_physics() {
     }
     // Vérifie si l'effet de l'œuf est actif et si la durée est dépassée
     if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
-        player_scale = 10; // Restaure la taille normale
+        player_scale = 12; // Restaure la taille normale
         player = copy_bitmap_with_transparency(player_original, player_scale);
         player_small = 0;
-        gravity = 1;  // Restaure la gravité normale
+        gravity = 2;  // Restaure la gravité normale
     }
+
 
 // Vérifie la collision avec l'œuf
     if (egg_active) {
@@ -553,6 +566,24 @@ void update_physics() {
             player_small = 1;
             egg_collected_time = time(NULL); // Enregistre le temps
             gravity = REDUCED_GRAVITY; // Réduit la gravité
+        }
+    }
+    if (eggr_active) {
+        int eggr_screen_x = eggr_x - world_x;
+        int player_right = player_x + player->w;
+        int player_bottom = player_y + player->h;
+
+        if (player_right > eggr_screen_x &&
+            player_x < eggr_screen_x + eggred->w &&
+            player_bottom > eggr_y &&
+            player_y < eggr_y + eggred->h) {
+
+            eggr_active = 0; // Désactive l'œuf après collecte
+            player_scale = 5; // augmentet la taille
+            player = copy_bitmap_with_transparency(player_original, player_scale);
+            player_small = 1;
+            egg_collected_time = time(NULL); // Enregistre le temps
+            gravity = AUGM_GRAVITY ; // AUGMENTE la gravité
         }
     }
 
@@ -690,6 +721,10 @@ void draw_game() {
             if (egg_active) {
                 int egg_screen_x = egg_x - world_x;
                 draw_sprite(buffer, eggblue, egg_screen_x, egg_y);
+            }
+            if (eggr_active) {
+                int eggr_screen_x = eggr_x - world_x;
+                draw_sprite(buffer, eggred, eggr_screen_x, eggr_y);
             }
 
         }
