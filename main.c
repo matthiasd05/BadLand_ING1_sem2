@@ -1,7 +1,8 @@
 #include <allegro.h>
 #include <stdio.h>
 #include <time.h>
-
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 #define GAME_SCREEN_W 800
 #define GAME_SCREEN_H 600
@@ -19,6 +20,9 @@
 #define EGG_EFFECT_DURATION 30 // Durée de l'effet en secondes
 #define REDUCED_GRAVITY 1  // Gravité plus faible
 #define AUGM_GRAVITY 3
+static float obstacle_angle = 0;
+
+
 
 
 int game_state = MENU;
@@ -658,6 +662,16 @@ void show_victory_screen() {
     clear_keybuf();
 }
 
+
+void draw_rotating_obstacle(int x, int y) {
+    obstacle_angle += 0.05; // Ajuste pour la vitesse de rotation
+
+    if (obstacle_angle >= 2 * M_PI)
+        obstacle_angle -= 2 * M_PI;
+
+    rotate_sprite(buffer, obstacle, x, y, ftofix(obstacle_angle * 128 / M_PI));
+}
+
 void draw_timer() {
     if (game_started) {
         elapsed_seconds = (int)difftime(time(NULL), start_time);
@@ -716,7 +730,7 @@ void draw_game() {
             int obs_screen_y = obstacle_positions[i][1];
 
             if (obs_screen_x + obstacle->w >= 0 && obs_screen_x < GAME_SCREEN_W) {
-                draw_sprite(buffer, obstacle, obs_screen_x, obs_screen_y);
+                draw_rotating_obstacle(obs_screen_x, obs_screen_y);
             }
             if (egg_active) {
                 int egg_screen_x = egg_x - world_x;
