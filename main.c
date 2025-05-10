@@ -8,7 +8,7 @@
 #define GAME_SCREEN_H 600
 
 #define JUMP_STRENGTH -15
-#define SCROLL_SPEED 2
+
 #define MAGENTA makecol(255, 0, 255)
 
 #define MENU 0
@@ -27,10 +27,11 @@ static float obstacle_angle = 0;
 
 int game_state = MENU;
 int gravity = 2;
-
+int scrollspeed = 2;
 BITMAP *buffer;
 BITMAP *background;
 BITMAP *background2;
+BITMAP *background3;
 BITMAP *badland_logo;
 BITMAP *player_original;
 BITMAP *player;
@@ -56,6 +57,7 @@ BITMAP *victoire;
 BITMAP *obstacle;
 BITMAP *eggblue;
 BITMAP *eggred;
+BITMAP *egggreen;
 
 
 int egg_x = 1500; // Position initiale dans le monde
@@ -63,11 +65,14 @@ int egg_y = 300;
 int egg_active = 1; // 1 = actif, 0 = déjà collecté
 time_t egg_collected_time = 0;
 int player_small = 0;
+
 int eggr_x = 3450; // Position initiale dans le monde
 int eggr_y = 450;
-int eggr_active = 1; // 1 = actif, 0 = déjà collecté
+int eggr_active = 1;// 1 = actif, 0 = déjà collecté
 
-
+int eggg_x = 2350; // Position initiale dans le monde
+int eggg_y = 260;
+int eggg_active = 1; // 1 = actif, 0 = déjà collecté
 
 
 int player_x = 100;
@@ -184,6 +189,11 @@ void init() {
         allegro_message("Erreur chargement background2.bmp !");
         exit(1);
     }
+    background3 = load_bitmap("background3.bmp", NULL);
+    if (!background3) {
+        allegro_message("Erreur chargement background3.bmp !");
+        exit(1);
+    }
 
 
     jungle_sound = load_sample("jungle.wav");
@@ -237,6 +247,12 @@ void init() {
         exit(1);
     }
 
+    egggreen = load_bitmap("egggreen.bmp", NULL);
+    egggreen = copy_bitmap_with_transparency(egggreen, 2);
+    if (!egggreen) {
+        allegro_message("Erreur chargement egggreen.bmp !");
+        exit(1);
+    }
 
 
 
@@ -354,7 +370,7 @@ void deinit() {
     destroy_bitmap(player2);
     destroy_bitmap(end_screen_image);
     destroy_bitmap(background2);
-
+    destroy_bitmap(background3);
 
 }
 
@@ -471,14 +487,14 @@ void update_physics() {
     // SCROLLING CONSTANT
     if (game_started) {
         // Défilement constant du fond
-        world_x += SCROLL_SPEED;
+        world_x += scrollspeed;
         if (world_x >= background->w) {
             world_x = 0;
         }
     }
 
     if (player_blocked_right) {
-        player_x -= SCROLL_SPEED;
+        player_x -= scrollspeed;
 
         if (player_x + player->w < 0) {
             int blink = 0;
@@ -543,54 +559,124 @@ void update_physics() {
                 break;
             }
         }
-    }
-    // Vérifie si l'effet de l'œuf est actif et si la durée est dépassée
-    if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
-        player_scale = 12; // Restaure la taille normale
-        player = copy_bitmap_with_transparency(player_original, player_scale);
-        player_small = 0;
-        gravity = 2;  // Restaure la gravité normale
-    }
+        if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
+            player_scale = 12; // Restaure la taille normale
+            player = copy_bitmap_with_transparency(player_original, player_scale);
+            player_small = 0;
+            gravity = 2;  // Restaure la gravité normale
+        }
 
 
 // Vérifie la collision avec l'œuf
-    if (egg_active) {
-        int egg_screen_x = egg_x - world_x;
+        if (egg_active) {
+            int egg_screen_x = egg_x - world_x;
+            int player_right = player_x + player->w;
+            int player_bottom = player_y + player->h;
+
+            if (player_right > egg_screen_x &&
+                player_x < egg_screen_x + eggblue->w &&
+                player_bottom > egg_y &&
+                player_y < egg_y + eggblue->h) {
+
+                egg_active = 0; // Désactive l'œuf après collecte
+                player_scale = 40; // Réduit la taille
+                player = copy_bitmap_with_transparency(player_original, player_scale);
+                player_small = 1;
+                egg_collected_time = time(NULL); // Enregistre le temps
+                gravity = REDUCED_GRAVITY; // Réduit la gravité
+            }
+        }
+        if (eggr_active) {
+            int eggr_screen_x = eggr_x - world_x;
+            int player_right = player_x + player->w;
+            int player_bottom = player_y + player->h;
+
+            if (player_right > eggr_screen_x &&
+                player_x < eggr_screen_x + eggred->w &&
+                player_bottom > eggr_y &&
+                player_y < eggr_y + eggred->h) {
+
+                eggr_active = 0; // Désactive l'œuf après collecte
+                player_scale = 5; // augmentet la taille
+                player = copy_bitmap_with_transparency(player_original, player_scale);
+                player_small = 1;
+                egg_collected_time = time(NULL); // Enregistre le temps
+                gravity = AUGM_GRAVITY ; // AUGMENTE la gravité
+            }
+        }
+    }
+    if (selected_level == 2) {
         int player_right = player_x + player->w;
         int player_bottom = player_y + player->h;
 
-        if (player_right > egg_screen_x &&
-            player_x < egg_screen_x + eggblue->w &&
-            player_bottom > egg_y &&
-            player_y < egg_y + eggblue->h) {
+        for (int i = 0; i < MAX_OBSTACLES; i++) {
+            int obs_screen_x = obstacle_positions[i][0] - world_x;
+            int obs_screen_y = obstacle_positions[i][1];
+            int obs_right = obs_screen_x + obstacle->w;
+            int obs_bottom = obs_screen_y + obstacle->h;
 
-            egg_active = 0; // Désactive l'œuf après collecte
-            player_scale = 40; // Réduit la taille
-            player = copy_bitmap_with_transparency(player_original, player_scale);
-            player_small = 1;
-            egg_collected_time = time(NULL); // Enregistre le temps
-            gravity = REDUCED_GRAVITY; // Réduit la gravité
+            if (player_right > obs_screen_x &&
+                player_x < obs_right &&
+                player_bottom > obs_screen_y &&
+                player_y < obs_bottom) {
+                // Collision avec un obstacle
+                game_state = END_SCREEN;
+                show_end_screen();
+                break;
+            }
         }
-    }
-    if (eggr_active) {
-        int eggr_screen_x = eggr_x - world_x;
-        int player_right = player_x + player->w;
-        int player_bottom = player_y + player->h;
-
-        if (player_right > eggr_screen_x &&
-            player_x < eggr_screen_x + eggred->w &&
-            player_bottom > eggr_y &&
-            player_y < eggr_y + eggred->h) {
-
-            eggr_active = 0; // Désactive l'œuf après collecte
-            player_scale = 5; // augmentet la taille
+        if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
+            player_scale = 12; // Restaure la taille normale
             player = copy_bitmap_with_transparency(player_original, player_scale);
-            player_small = 1;
-            egg_collected_time = time(NULL); // Enregistre le temps
-            gravity = AUGM_GRAVITY ; // AUGMENTE la gravité
+            player_small = 0;
+            gravity = 2;  // Restaure la gravité normale
         }
-    }
+// Vérifie la collision avec l'œuf
+        if (egg_active) {
+            int egg_screen_x = egg_x - world_x;
+            int player_right = player_x + player->w;
+            int player_bottom = player_y + player->h;
 
+            if (player_right > egg_screen_x &&
+                player_x < egg_screen_x + eggblue->w &&
+                player_bottom > egg_y &&
+                player_y < egg_y + eggblue->h) {
+
+                egg_active = 0; // Désactive l'œuf après collecte
+                player_scale = 40; // Réduit la taille
+                player = copy_bitmap_with_transparency(player_original, player_scale);
+                player_small = 1;
+                egg_collected_time = time(NULL); // Enregistre le temps
+                gravity = REDUCED_GRAVITY; // Réduit la gravité
+            }
+        }
+        // COLLISION AVEC L'ŒUF VERT
+        if (selected_level == 2 && eggg_active) {
+            int player_right = player_x + player->w;
+            int player_bottom = player_y + player->h;
+            int eggg_right = eggg_x - world_x + egggreen->w;
+            int eggg_bottom = eggg_y + egggreen->h;
+
+            if (player_right > eggg_x - world_x &&
+                player_x < eggg_right &&
+                player_bottom > eggg_y &&
+                player_y < eggg_bottom) {
+
+                eggg_active = 0;
+                egg_collected_time = time(NULL);
+                scrollspeed = 6; // vitesse augmentée
+            }
+        }
+        if (egg_collected_time > 0) {
+            int effect_duration = (int)difftime(time(NULL), egg_collected_time);
+            if (effect_duration >= EGG_EFFECT_DURATION) {
+                scrollspeed = 2; // retour à la normale
+                egg_collected_time = 0; // désactive le chrono
+            }
+        }
+
+
+    }
 
 
 }
@@ -692,14 +778,14 @@ void draw_timer() {
 void draw_game() {
 
 
-    int bg_pos1 = -world_x;
-    int bg_pos2 = bg_pos1 + background->w;
-
-    BITMAP *current_background = (selected_level == 1) ? background2 : background;
-    draw_sprite(buffer, current_background, bg_pos1, 0);
-
-    if (bg_pos2 < GAME_SCREEN_W) {
-        draw_sprite(buffer, current_background, bg_pos2, 0);
+    if (selected_level == 2) {
+        blit(background3, buffer, world_x, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
+    }
+    else if (selected_level == 1) {
+        blit(background2, buffer, world_x, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
+    }
+    else {
+        blit(background, buffer, world_x, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
     }
 
     if (selected_level >= 0 && selected_level < NUM_LEVELS) {
@@ -710,13 +796,6 @@ void draw_game() {
             draw_sprite(buffer, winflag, flag_x, flag_y);
         }
     }
-
-
-
-    if (bg_pos2 < GAME_SCREEN_W) {
-        draw_sprite(buffer, background, bg_pos2, 0);
-    }
-
     int map_pos1 = -world_x;
     int map_pos2 = map_pos1 + map_overlay->w;
 
@@ -724,6 +803,8 @@ void draw_game() {
     if (map_pos2 < GAME_SCREEN_W) {
         draw_sprite(buffer, map_overlay, map_pos2, 0);
     }
+
+
     if (selected_level == 1) {
         for (int i = 0; i < MAX_OBSTACLES; i++) {
             int obs_screen_x = obstacle_positions[i][0] - world_x;
@@ -732,19 +813,38 @@ void draw_game() {
             if (obs_screen_x + obstacle->w >= 0 && obs_screen_x < GAME_SCREEN_W) {
                 draw_rotating_obstacle(obs_screen_x, obs_screen_y);
             }
-            if (egg_active) {
-                int egg_screen_x = egg_x - world_x;
-                draw_sprite(buffer, eggblue, egg_screen_x, egg_y);
-            }
-            if (eggr_active) {
-                int eggr_screen_x = eggr_x - world_x;
-                draw_sprite(buffer, eggred, eggr_screen_x, eggr_y);
-            }
+
+        }
+        if (egg_active) {
+            int egg_screen_x = egg_x - world_x;
+            draw_sprite(buffer, eggblue, egg_screen_x, egg_y);
+        }
+        if (eggr_active) {
+
+            draw_sprite(buffer, eggred, eggr_x - world_x, eggr_y);
 
         }
     }
 
+    if (selected_level == 2) {
+        for (int i = 0; i < MAX_OBSTACLES; i++) {
+            int obs_screen_x = obstacle_positions[i][0] - world_x;
+            int obs_screen_y = obstacle_positions[i][1];
 
+            if (obs_screen_x + obstacle->w >= 0 && obs_screen_x < GAME_SCREEN_W) {
+                draw_rotating_obstacle(obs_screen_x, obs_screen_y);
+            }
+
+        }
+        if (egg_active) {
+            int egg_screen_x = egg_x - world_x;
+            draw_sprite(buffer, eggblue, egg_screen_x, egg_y);
+        }
+        if (eggg_active) {
+
+            draw_sprite(buffer, egggreen, eggg_x - world_x, eggg_y);
+        }
+    }
 
 
     for (int y = 0; y < player->h; y++) {
@@ -827,7 +927,10 @@ void load_map_for_selected_level() {
             map_overlay = load_bitmap("map_level2.bmp", NULL);
             play_music(neige_sound);
             break;
-            // Ajoute d'autres niveaux ici
+        case 2:
+            map_overlay = load_bitmap("map_level3.bmp", NULL);
+            play_music(neige_sound);
+            break;    // Ajoute d'autres niveaux ici
         default:
             map_overlay = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);  // Map vide par défaut
             clear_to_color(map_overlay, makecol(0, 0, 0));
