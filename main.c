@@ -1,7 +1,6 @@
 #include <allegro.h>
 #include <stdio.h>
 #include <time.h>
-#define _USE_MATH_DEFINES
 #include <math.h>
 
 #define GAME_SCREEN_W 800
@@ -15,9 +14,9 @@
 #define LEVEL_SELECTION 1
 #define PLAYING 2
 #define END_SCREEN 3
-#define MAX_OBSTACLES 10
+#define MAX_OBSTACLES 30
 #define NUM_LEVELS 3
-#define EGG_EFFECT_DURATION 30 // Durée de l'effet en secondes
+#define EGG_EFFECT_DURATION 20 // Durée de l'effet en secondes
 #define REDUCED_GRAVITY 1  // Gravité plus faible
 #define AUGM_GRAVITY 3
 static float obstacle_angle = 0;
@@ -52,6 +51,7 @@ SAMPLE* jump_sound;
 SAMPLE* gameover_sound;
 SAMPLE *victoire_sound;
 SAMPLE *neige_sound;
+SAMPLE *feu_sound;
 BITMAP *winflag;
 BITMAP *victoire;
 BITMAP *obstacle;
@@ -84,11 +84,13 @@ int animation_frame = 0;
 int game_started = 0;
 time_t start_time = 0;
 int elapsed_seconds = 0;
+int game_paused = 0;
 
 int my_mouse_x, my_mouse_y;
 int play_button_x, play_button_y;
 int play_button_width = 200;
 int play_button_height = 80;
+
 
 
 int winflag_positions[NUM_LEVELS][2] = {
@@ -114,6 +116,22 @@ int obstacle_positions[MAX_OBSTACLES][2] = {
         {5900, 280},
 
 };
+int obstacle2_positions[MAX_OBSTACLES][2] = {
+        {300, 450},
+        {400, 100},
+        {500, 450},
+        {600, 100},
+        {700, 450},
+        {800, 100},
+        {1600, 200},
+        {1700, 480},
+        {5650, 450},
+        {5900, 280},
+
+};
+
+
+
 
 
 
@@ -199,9 +217,9 @@ void init() {
     jungle_sound = load_sample("jungle.wav");
     nature_sound = load_sample("nature.wav");
     neige_sound = load_sample("neige.wav");
+    feu_sound = load_sample("feu.wav");
 
-
-    if (!jungle_sound || !nature_sound || !neige_sound) {
+    if (!jungle_sound || !nature_sound || !neige_sound || !feu_sound) {
         allegro_message("Erreur chargement musique !");
         exit(1);
     }
@@ -375,6 +393,22 @@ void deinit() {
 }
 
 void update_physics() {
+    // Vitesse de scrolling dépend du niveau sélectionné
+    switch (selected_level) {
+        case 0:
+            scrollspeed = 4;
+            break;
+        case 1:
+            scrollspeed = 4;
+            break;
+        case 2:
+            scrollspeed = 8;
+            break;
+        default:
+            scrollspeed = 2;
+            break;
+    }
+
     if (game_state != PLAYING) return;
 
     static int player_blocked_right = 0;
@@ -473,6 +507,13 @@ void update_physics() {
             player_speed_y = 0;
         }
     }
+    if (key[KEY_P]) {
+        game_paused = !game_paused;
+        rest (200);
+        // pour éviter les doubles déclenchements trop rapides
+    }
+
+
 
     // Sécurité verticale
     if (player_y > GAME_SCREEN_H - player->h) {
@@ -565,8 +606,6 @@ void update_physics() {
             player_small = 0;
             gravity = 2;  // Restaure la gravité normale
         }
-
-
 // Vérifie la collision avec l'œuf
         if (egg_active) {
             int egg_screen_x = egg_x - world_x;
@@ -605,19 +644,20 @@ void update_physics() {
             }
         }
     }
+
     if (selected_level == 2) {
         int player_right = player_x + player->w;
         int player_bottom = player_y + player->h;
 
         for (int i = 0; i < MAX_OBSTACLES; i++) {
-            int obs_screen_x = obstacle_positions[i][0] - world_x;
-            int obs_screen_y = obstacle_positions[i][1];
-            int obs_right = obs_screen_x + obstacle->w;
-            int obs_bottom = obs_screen_y + obstacle->h;
+            int obs2_screen_x = obstacle2_positions[i][0] - world_x;
+            int obs2_screen_y = obstacle2_positions[i][1];
+            int obs_right = obs2_screen_x + obstacle->w;
+            int obs_bottom = obs2_screen_y + obstacle->h;
 
-            if (player_right > obs_screen_x &&
+            if (player_right > obs2_screen_x &&
                 player_x < obs_right &&
-                player_bottom > obs_screen_y &&
+                player_bottom > obs2_screen_y &&
                 player_y < obs_bottom) {
                 // Collision avec un obstacle
                 game_state = END_SCREEN;
@@ -664,7 +704,7 @@ void update_physics() {
 
                 eggg_active = 0;
                 egg_collected_time = time(NULL);
-                scrollspeed = 6; // vitesse augmentée
+                scrollspeed = 8; // vitesse augmentée
             }
         }
         if (egg_collected_time > 0) {
@@ -685,11 +725,13 @@ void update_physics() {
 
 
 
+
 void show_end_screen() {
     int blink = 0;
     clear_keybuf();
     stop_sample(nature_sound);
     stop_sample(neige_sound);
+    stop_sample(feu_sound);
     play_sample(gameover_sound, 255, 128, 1000, FALSE);
 
     while (!key[KEY_ENTER]) {
@@ -721,6 +763,7 @@ void show_victory_screen() {
     clear_keybuf();
     stop_sample(nature_sound);
     stop_sample(neige_sound);
+    stop_sample(feu_sound);
     play_sample(victoire_sound, 100, 128, 1000, FALSE);
     while (!key[KEY_ENTER]) {
         clear_bitmap(buffer);
@@ -746,6 +789,12 @@ void show_victory_screen() {
     world_x = 0;
     player_speed_y = 0;
     clear_keybuf();
+}
+void show_pause_screen() {
+    clear_to_color(buffer, makecol(0, 0, 0)); // fond noir
+    textout_centre_ex(buffer, font, "PAUSE", GAME_SCREEN_W / 2, GAME_SCREEN_H / 2 - 20, makecol(255, 255, 255), -1);
+    textout_centre_ex(buffer, font, "Appuyez sur 'P' pour reprendre", GAME_SCREEN_W / 2, GAME_SCREEN_H / 2 + 20, makecol(200, 200, 200), -1);
+    blit(buffer, screen, 0, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
 }
 
 
@@ -776,7 +825,6 @@ void draw_timer() {
 }
 
 void draw_game() {
-
 
     if (selected_level == 2) {
         blit(background3, buffer, world_x, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
@@ -828,11 +876,11 @@ void draw_game() {
 
     if (selected_level == 2) {
         for (int i = 0; i < MAX_OBSTACLES; i++) {
-            int obs_screen_x = obstacle_positions[i][0] - world_x;
-            int obs_screen_y = obstacle_positions[i][1];
+            int obs2_screen_x = obstacle2_positions[i][0] - world_x;
+            int obs2_screen_y = obstacle2_positions[i][1];
 
-            if (obs_screen_x + obstacle->w >= 0 && obs_screen_x < GAME_SCREEN_W) {
-                draw_rotating_obstacle(obs_screen_x, obs_screen_y);
+            if (obs2_screen_x + obstacle->w >= 0 && obs2_screen_x < GAME_SCREEN_W) {
+                draw_rotating_obstacle(obs2_screen_x, obs2_screen_y);
             }
 
         }
@@ -880,7 +928,7 @@ void draw_game() {
 
 void draw_menu() {
     draw_sprite(buffer, menu_background, 0, 0);
-
+    stop_sample(gameover_sound);
     poll_mouse();
     my_mouse_x = mouse_x;
     my_mouse_y = mouse_y;
@@ -929,7 +977,7 @@ void load_map_for_selected_level() {
             break;
         case 2:
             map_overlay = load_bitmap("map_level3.bmp", NULL);
-            play_music(neige_sound);
+            play_music(feu_sound);
             break;    // Ajoute d'autres niveaux ici
         default:
             map_overlay = create_bitmap(GAME_SCREEN_W, GAME_SCREEN_H);  // Map vide par défaut
@@ -998,7 +1046,8 @@ void draw() {
     // Dessin de l'écran selon l'état du jeu
     if (game_state == MENU) {
         draw_menu();
-    } else if (game_state == LEVEL_SELECTION) {
+    }
+    else if (game_state == LEVEL_SELECTION) {
         draw_level_selection();
         load_map_for_selected_level();
     } else if (game_state == PLAYING) {
@@ -1021,13 +1070,21 @@ int main() {
 
         if (game_state == MENU && key[KEY_SPACE]) {
             game_state = LEVEL_SELECTION;
-
             rest(200);
         }
 
-        update_physics();
-        draw();
-        rest(20);
+
+        if (!game_paused) {
+            update_physics();
+            draw();
+            rest(20);
+        } else {
+            show_pause_screen();
+            if (key[KEY_P]) {
+                game_paused = !game_paused;
+                rest(200); // anti-rebond
+            }
+        }
     }
 
     deinit();
