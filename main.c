@@ -613,17 +613,19 @@ void update_physics() {
             int player_bottom = player_y + player->h;
 
             if (player_right > egg_screen_x &&
-                player_x < egg_screen_x + eggblue->w &&
-                player_bottom > egg_y &&
-                player_y < egg_y + eggblue->h) {
+        player_x < egg_screen_x + eggblue->w &&
+        player_bottom > egg_y &&
+        player_y < egg_y + eggblue->h) {
 
-                egg_active = 0; // Désactive l'œuf après collecte
-                player_scale = 40; // Réduit la taille
+                egg_active = 0;
+                player_scale = 40;
                 player = copy_bitmap_with_transparency(player_original, player_scale);
+                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
                 player_small = 1;
-                egg_collected_time = time(NULL); // Enregistre le temps
-                gravity = REDUCED_GRAVITY; // Réduit la gravité
-            }
+                egg_collected_time = time(NULL);
+                gravity = REDUCED_GRAVITY;
+        }
         }
         if (eggr_active) {
             int eggr_screen_x = eggr_x - world_x;
@@ -638,6 +640,8 @@ void update_physics() {
                 eggr_active = 0; // Désactive l'œuf après collecte
                 player_scale = 5; // augmentet la taille
                 player = copy_bitmap_with_transparency(player_original, player_scale);
+                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
                 player_small = 1;
                 egg_collected_time = time(NULL); // Enregistre le temps
                 gravity = AUGM_GRAVITY ; // AUGMENTE la gravité
@@ -668,6 +672,8 @@ void update_physics() {
         if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
             player_scale = 12; // Restaure la taille normale
             player = copy_bitmap_with_transparency(player_original, player_scale);
+            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
             player_small = 0;
             gravity = 2;  // Restaure la gravité normale
         }
@@ -685,6 +691,8 @@ void update_physics() {
                 egg_active = 0; // Désactive l'œuf après collecte
                 player_scale = 40; // Réduit la taille
                 player = copy_bitmap_with_transparency(player_original, player_scale);
+                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
                 player_small = 1;
                 egg_collected_time = time(NULL); // Enregistre le temps
                 gravity = REDUCED_GRAVITY; // Réduit la gravité
@@ -726,7 +734,7 @@ void update_physics() {
 
 
 
-void show_end_screen() {
+void show_end_screen(){
     int blink = 0;
     clear_keybuf();
     stop_sample(nature_sound);
@@ -758,7 +766,7 @@ void show_end_screen() {
     player_speed_y = 0;
     clear_keybuf();
 }
-void show_victory_screen() {
+void show_victory_screen(){
     int blink = 0;
     clear_keybuf();
     stop_sample(nature_sound);
@@ -790,7 +798,7 @@ void show_victory_screen() {
     player_speed_y = 0;
     clear_keybuf();
 }
-void show_pause_screen() {
+void show_pause_screen(){
     clear_to_color(buffer, makecol(0, 0, 0)); // fond noir
     textout_centre_ex(buffer, font, "PAUSE", GAME_SCREEN_W / 2, GAME_SCREEN_H / 2 - 20, makecol(255, 255, 255), -1);
     textout_centre_ex(buffer, font, "Appuyez sur 'P' pour reprendre", GAME_SCREEN_W / 2, GAME_SCREEN_H / 2 + 20, makecol(200, 200, 200), -1);
@@ -798,7 +806,7 @@ void show_pause_screen() {
 }
 
 
-void draw_rotating_obstacle(int x, int y) {
+void draw_rotating_obstacle(int x, int y){
     obstacle_angle += 0.05; // Ajuste pour la vitesse de rotation
 
     if (obstacle_angle >= 2 * M_PI)
@@ -807,7 +815,7 @@ void draw_rotating_obstacle(int x, int y) {
     rotate_sprite(buffer, obstacle, x, y, ftofix(obstacle_angle * 128 / M_PI));
 }
 
-void draw_timer() {
+void draw_timer(){
     if (game_started) {
         elapsed_seconds = (int)difftime(time(NULL), start_time);
         int minutes = elapsed_seconds / 60;
@@ -824,7 +832,7 @@ void draw_timer() {
     }
 }
 
-void draw_game() {
+void draw_game(){
 
     if (selected_level == 2) {
         blit(background3, buffer, world_x, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
@@ -926,7 +934,7 @@ void draw_game() {
 
 }
 
-void draw_menu() {
+void draw_menu(){
     draw_sprite(buffer, menu_background, 0, 0);
     stop_sample(gameover_sound);
     poll_mouse();
