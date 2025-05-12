@@ -59,14 +59,19 @@ BITMAP *eggblue;
 BITMAP *eggred;
 BITMAP *egggreen;
 BITMAP *bombe;
+BITMAP *explosion1, *explosion2, *explosion3;
+
 
 
 int bombe_x = 2500;
-int bombe_y = 20;
+int bombe_y = 100;
 int bombe_active = 1;
 float bombe_vy = 0.0;     // Vitesse verticale
 float bombe_gravity = 0.09; // Gravité appliquée à la bombe
 int bombe_visible = 0;
+int bombe_explose = 0;
+int explosion_frame = 0;
+int explosion_timer = 0;
 
 
 int egg_x = 1500; // Position initiale dans le monde
@@ -286,6 +291,13 @@ void init() {
         allegro_message("Erreur chargement bombe.bmp !");
         exit(1);
     }
+    explosion1 = load_bitmap("explosion1.bmp", NULL);
+    explosion2 = load_bitmap("explosion2.bmp", NULL);
+    explosion3 = load_bitmap("explosion3.bmp", NULL);
+    if (!explosion1 || !explosion2 || !explosion3) {
+        allegro_message("Erreur chargement explosion.bmp !");
+        exit(1);
+    }
 
 
 
@@ -405,6 +417,27 @@ void deinit() {
     destroy_bitmap(background2);
     destroy_bitmap(background3);
 
+}
+int bombe_collide_with_map() {
+    if (!map_overlay) return 0;
+
+    for (int y = 0; y < bombe->h; y++) {
+        for (int x = 0; x < bombe->w; x++) {
+            int map_x = bombe_x + x;
+            int map_y = bombe_y + y;
+
+            if (map_x >= 0 && map_x < map_overlay->w &&
+                map_y >= 0 && map_y < map_overlay->h) {
+
+                int color = getpixel(map_overlay, map_x, map_y);
+                if (color == makecol(0, 0, 0)) {
+                    return 1;  // collision détectée
+                }
+            }
+        }
+    }
+
+    return 0;
 }
 
 void update_physics() {
@@ -618,6 +651,8 @@ void update_physics() {
         if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
             player_scale = 12; // Restaure la taille normale
             player = copy_bitmap_with_transparency(player_original, player_scale);
+            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
             player_small = 0;
             gravity = 2;  // Restaure la gravité normale
         }
@@ -729,13 +764,15 @@ void update_physics() {
             bombe_active = 1; // Active la bombe
             bombe_visible = 1;
             bombe_x = 2700; // Place la bombe au-dessus du joueur ou d'une position fixe
-            bombe_y = 50;      // Commence en haut de l'écran
+            bombe_y = 75;      // Commence en haut de l'écran
             bombe_vy = 0.0;
             scrollspeed = 20;
             // Réduction immédiate
             player_scale = 40; // taille réduite
             destroy_bitmap(player);
             player = copy_bitmap_with_transparency(player_original, player_scale);
+            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
         }
 // Vérifie si 2 secondes se sont écoulées après avoir touché l'œuf vert
         if (!eggg_active && eggg_collected_time != 0) {
@@ -743,6 +780,8 @@ void update_physics() {
                 player_scale = 12; // retour à la taille normale
                 destroy_bitmap(player);
                 player = copy_bitmap_with_transparency(player_original, player_scale);
+                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
                 eggg_collected_time = 0; // réinitialiser pour ne pas répéter
             }
         }
@@ -771,14 +810,16 @@ void update_physics() {
                 return;
             }
         }
-        if (bombe_active) {
+// Simuler la chute de la bombe
+        if (selected_level == 2 && bombe_active && !bombe_explose) {
             bombe_vy += bombe_gravity;
             bombe_y += bombe_vy;
 
-            // Si elle touche le sol, tu peux arrêter la chute (optionnel)
-            if (bombe_y + bombe->h >= GAME_SCREEN_H) {
-                bombe_y = GAME_SCREEN_H - bombe->h;
-                bombe_vy = 0;
+            if (bombe_collide_with_map()) {
+                bombe_explose = 1;
+                bombe_active = 0;
+                explosion_timer = 0;
+                explosion_frame = 0;
             }
         }
 
@@ -960,6 +1001,22 @@ void draw_game(){
         if (bombe_visible && bombe_active) {
             draw_sprite(buffer, bombe, bombe_x - world_x, bombe_y);
         }
+        if (bombe_explose) {
+            explosion_timer++;
+
+            BITMAP* current_explosion = NULL;
+            if (explosion_timer < 10) current_explosion = explosion1;
+            else if (explosion_timer < 20) current_explosion = explosion2;
+            else if (explosion_timer < 30) current_explosion = explosion3;
+            else bombe_explose = 0;  // Fin de l'explosion
+
+            if (current_explosion) {
+                draw_sprite(buffer, current_explosion, bombe_x - world_x, bombe_y);
+            }
+        } else if (bombe_active) {
+            draw_sprite(buffer, bombe, bombe_x - world_x, bombe_y);
+        }
+
 
 
     }
