@@ -16,7 +16,7 @@
 #define END_SCREEN 3
 #define MAX_OBSTACLES 30
 #define NUM_LEVELS 3
-#define EGG_EFFECT_DURATION 20 // Durée de l'effet en secondes
+#define EGG_EFFECT_DURATION 15 // Durée de l'effet en secondes
 #define REDUCED_GRAVITY 1  // Gravité plus faible
 #define AUGM_GRAVITY 3
 static float obstacle_angle = 0;
@@ -58,6 +58,15 @@ BITMAP *obstacle;
 BITMAP *eggblue;
 BITMAP *eggred;
 BITMAP *egggreen;
+BITMAP *bombe;
+
+
+int bombe_x = 2500;
+int bombe_y = 20;
+int bombe_active = 1;
+float bombe_vy = 0.0;     // Vitesse verticale
+float bombe_gravity = 0.09; // Gravité appliquée à la bombe
+int bombe_visible = 0;
 
 
 int egg_x = 1500; // Position initiale dans le monde
@@ -124,7 +133,7 @@ int obstacle2_positions[MAX_OBSTACLES][2] = {
         {700, 450},
         {800, 100},
         {1600, 200},
-        {1700, 480},
+        {1750, 480},
         {5650, 450},
         {5900, 280},
 
@@ -271,6 +280,12 @@ void init() {
         allegro_message("Erreur chargement egggreen.bmp !");
         exit(1);
     }
+    bombe = load_bitmap("bombe.bmp", NULL);
+    bombe = copy_bitmap_with_transparency(bombe, 2);  // utilise ton système de transparence
+    if (!bombe) {
+        allegro_message("Erreur chargement bombe.bmp !");
+        exit(1);
+    }
 
 
 
@@ -402,7 +417,7 @@ void update_physics() {
             scrollspeed = 4;
             break;
         case 2:
-            scrollspeed = 8;
+            scrollspeed = 6;
             break;
         default:
             scrollspeed = 2;
@@ -710,18 +725,57 @@ void update_physics() {
                 player_bottom > eggg_y &&
                 player_y < eggg_bottom) {
 
-                eggg_active = 0;
+
                 egg_collected_time = time(NULL);
-                scrollspeed = 8; // vitesse augmentée
+                eggg_active = 0;  // L'œuf est collecté
+
+                scrollspeed = 10;
+                bombe_active = 1; // Active la bombe
+                bombe_visible = 1;
+                bombe_x = 2700; // Place la bombe au-dessus du joueur ou d'une position fixe
+                bombe_y = 50;      // Commence en haut de l'écran
+                bombe_vy = 0.0;   // vitesse augmentée
             }
         }
         if (egg_collected_time > 0) {
             int effect_duration = (int)difftime(time(NULL), egg_collected_time);
             if (effect_duration >= EGG_EFFECT_DURATION) {
-                scrollspeed = 2; // retour à la normale
+                scrollspeed = 8; // retour à la normale
                 egg_collected_time = 0; // désactive le chrono
             }
         }
+        if (bombe_active) {
+            int bombe_right = bombe_x;
+            int bombe_bottom = bombe_y + bombe->h;
+            int bombe_left = bombe_x;
+            int bombe_top = bombe_y;
+
+            int player_right = player_x + player->w;
+            int player_bottom = player_y + player->h;
+
+            if (player_right > bombe_x - world_x &&
+                player_x < bombe_x - world_x + bombe->w &&
+                player_bottom > bombe_y &&
+                player_y < bombe_y + bombe->h) {
+
+                // Collision détectée → mort immédiate
+                rest(1000);
+                show_end_screen();
+                return;
+            }
+        }
+        if (bombe_active) {
+            bombe_vy += bombe_gravity;
+            bombe_y += bombe_vy;
+
+            // Si elle touche le sol, tu peux arrêter la chute (optionnel)
+            if (bombe_y + bombe->h >= GAME_SCREEN_H) {
+                bombe_y = GAME_SCREEN_H - bombe->h;
+                bombe_vy = 0;
+            }
+        }
+
+
 
 
     }
@@ -896,6 +950,11 @@ void draw_game(){
 
             draw_sprite(buffer, egggreen, eggg_x - world_x, eggg_y);
         }
+        if (bombe_visible && bombe_active) {
+            draw_sprite(buffer, bombe, bombe_x - world_x, bombe_y);
+        }
+
+
     }
 
 
