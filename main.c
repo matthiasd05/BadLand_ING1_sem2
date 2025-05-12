@@ -82,7 +82,7 @@ int eggr_active = 1;// 1 = actif, 0 = déjà collecté
 int eggg_x = 2350; // Position initiale dans le monde
 int eggg_y = 260;
 int eggg_active = 1; // 1 = actif, 0 = déjà collecté
-
+time_t eggg_collected_time = 0;
 
 int player_x = 100;
 int player_y = 300;
@@ -684,6 +684,8 @@ void update_physics() {
                 break;
             }
         }
+
+
         if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
             player_scale = 12; // Restaure la taille normale
             player = copy_bitmap_with_transparency(player_original, player_scale);
@@ -692,6 +694,7 @@ void update_physics() {
             player_small = 0;
             gravity = 2;  // Restaure la gravité normale
         }
+
 // Vérifie la collision avec l'œuf
         if (egg_active) {
             int egg_screen_x = egg_x - world_x;
@@ -714,34 +717,41 @@ void update_physics() {
             }
         }
         // COLLISION AVEC L'ŒUF VERT
-        if (selected_level == 2 && eggg_active) {
-            int player_right = player_x + player->w;
-            int player_bottom = player_y + player->h;
-            int eggg_right = eggg_x - world_x + egggreen->w;
-            int eggg_bottom = eggg_y + egggreen->h;
+        // Collision avec l'œuf vert
+        if (eggg_active && player_x + player->w >= eggg_x - world_x &&
+            player_x <= eggg_x - world_x + egggreen->w &&
+            player_y + player->h >= eggg_y &&
+            player_y <= eggg_y + egggreen->h) {
 
-            if (player_right > eggg_x - world_x &&
-                player_x < eggg_right &&
-                player_bottom > eggg_y &&
-                player_y < eggg_bottom) {
-
-
-                egg_collected_time = time(NULL);
-                eggg_active = 0;  // L'œuf est collecté
-
-                scrollspeed = 10;
-                bombe_active = 1; // Active la bombe
-                bombe_visible = 1;
-                bombe_x = 2700; // Place la bombe au-dessus du joueur ou d'une position fixe
-                bombe_y = 50;      // Commence en haut de l'écran
-                bombe_vy = 0.0;   // vitesse augmentée
+            eggg_active = 0;
+            eggg_collected_time = time(NULL);
+            scrollspeed = 10;
+            bombe_active = 1; // Active la bombe
+            bombe_visible = 1;
+            bombe_x = 2700; // Place la bombe au-dessus du joueur ou d'une position fixe
+            bombe_y = 50;      // Commence en haut de l'écran
+            bombe_vy = 0.0;
+            scrollspeed = 20;
+            // Réduction immédiate
+            player_scale = 40; // taille réduite
+            destroy_bitmap(player);
+            player = copy_bitmap_with_transparency(player_original, player_scale);
+        }
+// Vérifie si 2 secondes se sont écoulées après avoir touché l'œuf vert
+        if (!eggg_active && eggg_collected_time != 0) {
+            if (difftime(time(NULL), eggg_collected_time) >= 2.0) {
+                player_scale = 12; // retour à la taille normale
+                destroy_bitmap(player);
+                player = copy_bitmap_with_transparency(player_original, player_scale);
+                eggg_collected_time = 0; // réinitialiser pour ne pas répéter
             }
         }
-        if (egg_collected_time > 0) {
-            int effect_duration = (int)difftime(time(NULL), egg_collected_time);
+
+        if (eggg_collected_time > 0) {
+            int effect_duration = (int)difftime(time(NULL), eggg_collected_time);
             if (effect_duration >= EGG_EFFECT_DURATION) {
                 scrollspeed = 8; // retour à la normale
-                egg_collected_time = 0; // désactive le chrono
+                eggg_collected_time = 0; // désactive le chrono
             }
         }
         if (bombe_active) {
@@ -757,9 +767,6 @@ void update_physics() {
                 player_x < bombe_x - world_x + bombe->w &&
                 player_bottom > bombe_y &&
                 player_y < bombe_y + bombe->h) {
-
-                // Collision détectée → mort immédiate
-                rest(1000);
                 show_end_screen();
                 return;
             }
