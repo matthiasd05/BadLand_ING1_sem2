@@ -730,10 +730,6 @@ void update_physics() {
 }
 
 
-
-
-
-
 void show_end_screen(){
     int blink = 0;
     clear_keybuf();
