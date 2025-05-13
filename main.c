@@ -138,8 +138,10 @@ int obstacle2_positions[MAX_OBSTACLES][2] = {
 
 };
 int roue_positions[MAX_OBSTACLES][2] = {
-        {500, 0},
+        {500, -50},
         {700, 450},
+        {3400, -100},
+        {3200, 450},
 
 };
 
@@ -456,7 +458,7 @@ void update_physics() {
             break;
         case 2:
             scrollspeed = 6;
-            break;
+                break;
         default:
             scrollspeed = 2;
             break;
@@ -780,13 +782,12 @@ void update_physics() {
 
             eggg_active = 0;
             eggg_collected_time = time(NULL);
-            scrollspeed = 10;
+            scrollspeed = 2;
             bombe_active = 1; // Active la bombe
             bombe_visible = 1;
             bombe_x = 2700; // Place la bombe au-dessus du joueur ou d'une position fixe
             bombe_y = 75;      // Commence en haut de l'écran
             bombe_vy = 0.0;
-            scrollspeed = 20;
             // Réduction immédiate
             player_scale = 40; // taille réduite
             destroy_bitmap(player);
@@ -809,7 +810,7 @@ void update_physics() {
         if (eggg_collected_time > 0) {
             int effect_duration = (int)difftime(time(NULL), eggg_collected_time);
             if (effect_duration >= EGG_EFFECT_DURATION) {
-                scrollspeed = 8; // retour à la normale
+                scrollspeed = 2; // retour à la normale
                 eggg_collected_time = 0; // désactive le chrono
             }
         }
@@ -934,7 +935,7 @@ void draw_rotating_obstacle(int x, int y){
 }
 
 void draw_rotating_roue(int x, int y){
-    roue_angle += 0.05; // Ajuste pour la vitesse de rotation
+    roue_angle += 0.1; // Ajuste pour la vitesse de rotation
 
     if (roue_angle >= 2 * M_PI)
         roue_angle -= 2 * M_PI;
