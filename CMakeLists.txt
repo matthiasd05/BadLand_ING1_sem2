@@ -10,5 +10,6 @@ add_executable(Badland_ING1_sem2
         menu.h
         levels.h
         save.h
-        resources.h)
+        resources.h
+        resources.c)
 target_link_libraries(Badland_ING1_sem2 -lmingw32 -lalleg44)
