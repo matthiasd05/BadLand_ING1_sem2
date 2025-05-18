@@ -16,11 +16,11 @@
 #define END_SCREEN 3
 #define MAX_OBSTACLES 30
 #define NUM_LEVELS 3
-#define EGG_EFFECT_DURATION 15 // Durée de l'effet en secondes
+#define EGG_EFFECT_DURATION 20 // Durée de l'effet en secondes
 #define REDUCED_GRAVITY 1  // Gravité plus faible
 #define AUGM_GRAVITY 3
 static float obstacle_angle = 0;
-static float roue_angle = 0;
+
 
 
 
@@ -58,20 +58,6 @@ BITMAP *obstacle;
 BITMAP *eggblue;
 BITMAP *eggred;
 BITMAP *egggreen;
-BITMAP *bombe;
-BITMAP *explosion1, *explosion2, *explosion3;
-BITMAP *roue;
-
-
-int bombe_x = 2500;
-int bombe_y = 100;
-int bombe_active = 1;
-float bombe_vy = 0.0;     // Vitesse verticale
-float bombe_gravity = 0.09; // Gravité appliquée à la bombe
-int bombe_visible = 0;
-int bombe_explose = 0;
-int explosion_frame = 0;
-int explosion_timer = 0;
 
 
 int egg_x = 1500; // Position initiale dans le monde
@@ -87,7 +73,7 @@ int eggr_active = 1;// 1 = actif, 0 = déjà collecté
 int eggg_x = 2350; // Position initiale dans le monde
 int eggg_y = 260;
 int eggg_active = 1; // 1 = actif, 0 = déjà collecté
-time_t eggg_collected_time = 0;
+
 
 int player_x = 100;
 int player_y = 300;
@@ -131,17 +117,16 @@ int obstacle_positions[MAX_OBSTACLES][2] = {
 
 };
 int obstacle2_positions[MAX_OBSTACLES][2] = {
+        {300, 450},
+        {400, 100},
+        {500, 450},
+        {600, 100},
+        {700, 450},
+        {800, 100},
         {1600, 200},
-        {1750, 480},
+        {1700, 480},
         {5650, 450},
         {5900, 280},
-
-};
-int roue_positions[MAX_OBSTACLES][2] = {
-        {500, -50},
-        {700, 450},
-        {3400, -100},
-        {3200, 450},
 
 };
 
@@ -182,6 +167,9 @@ void draw_level_selection();
 void draw();
 void show_victory_screen();
 void play_music(SAMPLE* music);
+void show_pause_screen();
+void draw_rotating_obstacle(int x, int y);
+void load_map_for_selected_level();
 
 void init() {
     allegro_init();
@@ -265,12 +253,6 @@ void init() {
         allegro_message("Erreur chargement obstacle.bmp !");
         exit(1);
     }
-    roue = load_bitmap("roue.bmp", NULL);
-    roue = copy_bitmap_with_transparency(roue, 2);
-    if (!roue) {
-        allegro_message("Erreur chargement roue.bmp !");
-        exit(1);
-    }
 
     eggblue = load_bitmap("eggblue.bmp", NULL);
     eggblue = copy_bitmap_with_transparency(eggblue, 2);
@@ -290,19 +272,6 @@ void init() {
     egggreen = copy_bitmap_with_transparency(egggreen, 2);
     if (!egggreen) {
         allegro_message("Erreur chargement egggreen.bmp !");
-        exit(1);
-    }
-    bombe = load_bitmap("bombe.bmp", NULL);
-    bombe = copy_bitmap_with_transparency(bombe, 2);  // utilise ton système de transparence
-    if (!bombe) {
-        allegro_message("Erreur chargement bombe.bmp !");
-        exit(1);
-    }
-    explosion1 = load_bitmap("explosion1.bmp", NULL);
-    explosion2 = load_bitmap("explosion2.bmp", NULL);
-    explosion3 = load_bitmap("explosion3.bmp", NULL);
-    if (!explosion1 || !explosion2 || !explosion3) {
-        allegro_message("Erreur chargement explosion.bmp !");
         exit(1);
     }
 
@@ -425,27 +394,6 @@ void deinit() {
     destroy_bitmap(background3);
 
 }
-int bombe_collide_with_map() {
-    if (!map_overlay) return 0;
-
-    for (int y = 0; y < bombe->h; y++) {
-        for (int x = 0; x < bombe->w; x++) {
-            int map_x = bombe_x + x;
-            int map_y = bombe_y + y;
-
-            if (map_x >= 0 && map_x < map_overlay->w &&
-                map_y >= 0 && map_y < map_overlay->h) {
-
-                int color = getpixel(map_overlay, map_x, map_y);
-                if (color == makecol(0, 0, 0)) {
-                    return 1;  // collision détectée
-                }
-            }
-        }
-    }
-
-    return 0;
-}
 
 void update_physics() {
     // Vitesse de scrolling dépend du niveau sélectionné
@@ -457,8 +405,8 @@ void update_physics() {
             scrollspeed = 4;
             break;
         case 2:
-            scrollspeed = 6;
-                break;
+            scrollspeed = 8;
+            break;
         default:
             scrollspeed = 2;
             break;
@@ -658,8 +606,6 @@ void update_physics() {
         if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
             player_scale = 12; // Restaure la taille normale
             player = copy_bitmap_with_transparency(player_original, player_scale);
-            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
             player_small = 0;
             gravity = 2;  // Restaure la gravité normale
         }
@@ -670,9 +616,9 @@ void update_physics() {
             int player_bottom = player_y + player->h;
 
             if (player_right > egg_screen_x &&
-                player_x < egg_screen_x + eggblue->w &&
-                player_bottom > egg_y &&
-                player_y < egg_y + eggblue->h) {
+        player_x < egg_screen_x + eggblue->w &&
+        player_bottom > egg_y &&
+        player_y < egg_y + eggblue->h) {
 
                 egg_active = 0;
                 player_scale = 40;
@@ -682,7 +628,7 @@ void update_physics() {
                 player_small = 1;
                 egg_collected_time = time(NULL);
                 gravity = REDUCED_GRAVITY;
-            }
+        }
         }
         if (eggr_active) {
             int eggr_screen_x = eggr_x - world_x;
@@ -726,32 +672,12 @@ void update_physics() {
                 break;
             }
         }
-        for (int i = 0; i < MAX_OBSTACLES; i++) {
-            int roue_screen_x = roue_positions[i][0] - world_x;
-            int roue_screen_y = roue_positions[i][1];
-            int roue_right = roue_screen_x + roue->w;
-            int roue_bottom = roue_screen_y + roue->h;
-
-            if (player_right > roue_screen_x &&
-                player_x < roue_right &&
-                player_bottom > roue_screen_y &&
-                player_y < roue_bottom) {
-                // Collision avec un obstacle
-                game_state = END_SCREEN;
-                show_end_screen();
-                break;
-            }
-        }
-
         if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
             player_scale = 12; // Restaure la taille normale
             player = copy_bitmap_with_transparency(player_original, player_scale);
-            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
             player_small = 0;
             gravity = 2;  // Restaure la gravité normale
         }
-
 // Vérifie la collision avec l'œuf
         if (egg_active) {
             int egg_screen_x = egg_x - world_x;
@@ -774,77 +700,29 @@ void update_physics() {
             }
         }
         // COLLISION AVEC L'ŒUF VERT
-        // Collision avec l'œuf vert
-        if (eggg_active && player_x + player->w >= eggg_x - world_x &&
-            player_x <= eggg_x - world_x + egggreen->w &&
-            player_y + player->h >= eggg_y &&
-            player_y <= eggg_y + egggreen->h) {
-
-            eggg_active = 0;
-            eggg_collected_time = time(NULL);
-            scrollspeed = 2;
-            bombe_active = 1; // Active la bombe
-            bombe_visible = 1;
-            bombe_x = 2700; // Place la bombe au-dessus du joueur ou d'une position fixe
-            bombe_y = 75;      // Commence en haut de l'écran
-            bombe_vy = 0.0;
-            // Réduction immédiate
-            player_scale = 40; // taille réduite
-            destroy_bitmap(player);
-            player = copy_bitmap_with_transparency(player_original, player_scale);
-            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-        }
-// Vérifie si 2 secondes se sont écoulées après avoir touché l'œuf vert
-        if (!eggg_active && eggg_collected_time != 0) {
-            if (difftime(time(NULL), eggg_collected_time) >= 2.0) {
-                player_scale = 12; // retour à la taille normale
-                destroy_bitmap(player);
-                player = copy_bitmap_with_transparency(player_original, player_scale);
-                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-                eggg_collected_time = 0; // réinitialiser pour ne pas répéter
-            }
-        }
-
-        if (eggg_collected_time > 0) {
-            int effect_duration = (int)difftime(time(NULL), eggg_collected_time);
-            if (effect_duration >= EGG_EFFECT_DURATION) {
-                scrollspeed = 2; // retour à la normale
-                eggg_collected_time = 0; // désactive le chrono
-            }
-        }
-        if (bombe_active) {
-            int bombe_right = bombe_x;
-            int bombe_bottom = bombe_y + bombe->h;
-            int bombe_left = bombe_x;
-            int bombe_top = bombe_y;
-
+        if (selected_level == 2 && eggg_active) {
             int player_right = player_x + player->w;
             int player_bottom = player_y + player->h;
+            int eggg_right = eggg_x - world_x + egggreen->w;
+            int eggg_bottom = eggg_y + egggreen->h;
 
-            if (player_right > bombe_x - world_x &&
-                player_x < bombe_x - world_x + bombe->w &&
-                player_bottom > bombe_y &&
-                player_y < bombe_y + bombe->h) {
-                show_end_screen();
-                return;
+            if (player_right > eggg_x - world_x &&
+                player_x < eggg_right &&
+                player_bottom > eggg_y &&
+                player_y < eggg_bottom) {
+
+                eggg_active = 0;
+                egg_collected_time = time(NULL);
+                scrollspeed = 8; // vitesse augmentée
             }
         }
-// Simuler la chute de la bombe
-        if (selected_level == 2 && bombe_active && !bombe_explose) {
-            bombe_vy += bombe_gravity;
-            bombe_y += bombe_vy;
-
-            if (bombe_collide_with_map()) {
-                bombe_explose = 1;
-                bombe_active = 0;
-                explosion_timer = 0;
-                explosion_frame = 0;
+        if (egg_collected_time > 0) {
+            int effect_duration = (int)difftime(time(NULL), egg_collected_time);
+            if (effect_duration >= EGG_EFFECT_DURATION) {
+                scrollspeed = 2; // retour à la normale
+                egg_collected_time = 0; // désactive le chrono
             }
         }
-
-
 
 
     }
@@ -1000,14 +878,6 @@ void draw_rotating_obstacle(int x, int y){
     rotate_sprite(buffer, obstacle, x, y, ftofix(obstacle_angle * 128 / M_PI));
 }
 
-void draw_rotating_roue(int x, int y){
-    roue_angle += 0.1; // Ajuste pour la vitesse de rotation
-
-    if (roue_angle >= 2 * M_PI)
-        roue_angle -= 2 * M_PI;
-
-    rotate_sprite(buffer, roue, x, y, ftofix(roue_angle * 128 / M_PI));
-}
 void draw_timer(){
     if (game_started) {
         elapsed_seconds = (int)difftime(time(NULL), start_time);
@@ -1085,15 +955,6 @@ void draw_game(){
             }
 
         }
-        for (int i = 0; i < MAX_OBSTACLES; i++) {
-            int roue_screen_x = roue_positions[i][0] - world_x;
-            int roue_screen_y = roue_positions[i][1];
-
-            if (roue_screen_x + roue->w >= 0 && roue_screen_x < GAME_SCREEN_W) {
-                draw_rotating_roue(roue_screen_x, roue_screen_y);
-            }
-
-        }
         if (egg_active) {
             int egg_screen_x = egg_x - world_x;
             draw_sprite(buffer, eggblue, egg_screen_x, egg_y);
@@ -1102,27 +963,6 @@ void draw_game(){
 
             draw_sprite(buffer, egggreen, eggg_x - world_x, eggg_y);
         }
-        if (bombe_visible && bombe_active) {
-            draw_sprite(buffer, bombe, bombe_x - world_x, bombe_y);
-        }
-        if (bombe_explose) {
-            explosion_timer++;
-
-            BITMAP* current_explosion = NULL;
-            if (explosion_timer < 10) current_explosion = explosion1;
-            else if (explosion_timer < 20) current_explosion = explosion2;
-            else if (explosion_timer < 30) current_explosion = explosion3;
-            else bombe_explose = 0;  // Fin de l'explosion
-
-            if (current_explosion) {
-                draw_sprite(buffer, current_explosion, bombe_x - world_x, bombe_y);
-            }
-        } else if (bombe_active) {
-            draw_sprite(buffer, bombe, bombe_x - world_x, bombe_y);
-        }
-
-
-
     }
 
 
