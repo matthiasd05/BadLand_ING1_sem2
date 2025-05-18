@@ -148,10 +148,6 @@ int roue_positions[MAX_OBSTACLES][2] = {
 };
 
 
-
-
-
-
 int selected_level = -1;
 
 BITMAP* copy_bitmap_with_transparency(BITMAP *src, int scale_factor) {
@@ -172,7 +168,7 @@ BITMAP* copy_bitmap_with_transparency(BITMAP *src, int scale_factor) {
 
     return result;
 }
-
+// Sous-programmes
 void init();
 void deinit();
 void update_physics();
