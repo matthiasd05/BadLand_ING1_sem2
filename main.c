@@ -573,9 +573,8 @@ void update_physics() {
                 player2 = copy_bitmap_with_transparency(player2_original, player_scale);
             } else {
                 // plus de vies → retour au menu
-                player_lives   = 3;
-                selected_level = -1;
-                game_state     = MENU;
+                show_end_screen();
+                return;
             }
             return;
         }
@@ -707,10 +706,8 @@ void update_physics() {
                     player1 = copy_bitmap_with_transparency(player1_original, player_scale);
                     player2 = copy_bitmap_with_transparency(player2_original, player_scale);
                 } else {
-                    // plus de vies → retour menu
-                    player_lives = 3;
-                    selected_level = -1;
-                    game_state = MENU;
+                    show_end_screen();
+                    return;
                 }
                 return;
             }
@@ -736,9 +733,8 @@ void update_physics() {
                     player1 = copy_bitmap_with_transparency(player1_original, player_scale);
                     player2 = copy_bitmap_with_transparency(player2_original, player_scale);
                 } else {
-                    player_lives = 3;
-                    selected_level = -1;
-                    game_state = MENU;
+                    show_end_screen();
+                    return;
                 }
                 return;
             }
@@ -762,9 +758,8 @@ void update_physics() {
                     player1 = copy_bitmap_with_transparency(player1_original, player_scale);
                     player2 = copy_bitmap_with_transparency(player2_original, player_scale);
                 } else {
-                    player_lives = 3;
-                    selected_level = -1;
-                    game_state = MENU;
+                    show_end_screen();
+                    return;
                 }
                 return;
             }
@@ -787,9 +782,8 @@ void update_physics() {
                     player1 = copy_bitmap_with_transparency(player1_original, player_scale);
                     player2 = copy_bitmap_with_transparency(player2_original, player_scale);
                 } else {
-                    player_lives = 3;
-                    selected_level = -1;
-                    game_state = MENU;
+                    show_end_screen();
+                    return;
                 }
                 return;
             }
@@ -820,9 +814,8 @@ void update_physics() {
                     player1 = copy_bitmap_with_transparency(player1_original, player_scale);
                     player2 = copy_bitmap_with_transparency(player2_original, player_scale);
                 } else {
-                    player_lives = 3;
-                    selected_level = -1;
-                    game_state = MENU;
+                    show_end_screen();
+                    return;
                 }
                 return;
             }
@@ -853,9 +846,8 @@ void update_physics() {
                     player1 = copy_bitmap_with_transparency(player1_original, player_scale);
                     player2 = copy_bitmap_with_transparency(player2_original, player_scale);
                 } else {
-                    player_lives = 3;
-                    selected_level = -1;
-                    game_state = MENU;
+                    show_end_screen();
+                    return;
                 }
                 return;
             }
@@ -880,9 +872,8 @@ void update_physics() {
                     player1 = copy_bitmap_with_transparency(player1_original, player_scale);
                     player2 = copy_bitmap_with_transparency(player2_original, player_scale);
                 } else {
-                    player_lives = 3;
-                    selected_level = -1;
-                    game_state = MENU;
+                    show_end_screen();
+                    return;
                 }
                 return;
             }
@@ -906,9 +897,8 @@ void update_physics() {
                     player1 = copy_bitmap_with_transparency(player1_original, player_scale);
                     player2 = copy_bitmap_with_transparency(player2_original, player_scale);
                 } else {
-                    player_lives = 3;
-                    selected_level = -1;
-                    game_state = MENU;
+                    show_end_screen();
+                    return;
                 }
                 return;
             }
@@ -929,7 +919,6 @@ void update_physics() {
 }
 
 
-
 void show_end_screen() {
     clear_keybuf();
     stop_sample(nature_sound);
@@ -939,7 +928,7 @@ void show_end_screen() {
 
     int button_w = 200;
     int button_h = 50;
-    int start_y = GAME_SCREEN_H - 200; // Met les boutons en bas de l'écran
+    int start_y = GAME_SCREEN_H - 200;
     const char *options[] = {"Rejouer", "Quitter"};
 
     int choice_made = 0;
@@ -949,90 +938,86 @@ void show_end_screen() {
         my_mouse_x = mouse_x;
         my_mouse_y = mouse_y;
 
-        // Dessine le fond de fin de partie
+        // Fond Game Over
         draw_sprite(buffer, end_screen_image, 0, 0);
 
         for (int i = 0; i < 2; i++) {
             int button_x = (GAME_SCREEN_W - button_w) / 2;
-            int button_y = start_y + i * (button_h + 20);  // 20 pixels d'espace entre les boutons
-
+            int button_y = start_y + i * (button_h + 20);
 
             int mouse_over = (my_mouse_x >= button_x && my_mouse_x <= button_x + button_w &&
                               my_mouse_y >= button_y && my_mouse_y <= button_y + button_h);
 
-            if (mouse_over) {
-                rectfill(buffer, button_x, button_y, button_x + button_w, button_y + button_h, makecol(120, 120, 200));
+            // état du bouton survolé ou non
+            rectfill(buffer, button_x, button_y,
+                     button_x + button_w, button_y + button_h,
+                     mouse_over
+                       ? makecol(120, 120, 200)
+                       : makecol(80, 80, 150));
 
-                if (mouse_over) {
-                    rectfill(buffer, button_x, button_y, button_x + button_w, button_y + button_h, makecol(120, 120, 200));
+            textout_centre_ex(buffer, font, options[i],
+                              GAME_SCREEN_W / 2, button_y + 15,
+                              makecol(255, 255, 255), -1);
 
-                    if (mouse_b & 1) {
-                        rest(200); // Anti double clic
+            // clic souris
+            if (mouse_over && (mouse_b & 1)) {
+                rest(200); // anti double-clic
+                while (mouse_b & 1) poll_mouse();
 
-                        while (mouse_b & 1) {
-                            poll_mouse();  // Attend que le clic soit relâché
-                        }
+                if (i == 0) {  // Rejouer
+                    stop_sample(gameover_sound);
 
-                        if (i == 0) { // Rejouer
-                            stop_sample(gameover_sound);
+                    // --- réinitialisation du joueur & objets ---
+                    player_x = 100;
+                    player_y = 300;
+                    player_speed_y = 0;
+                    player_scale = 12;
+                    destroy_bitmap(player);
+                    player  = copy_bitmap_with_transparency(player_original, player_scale);
+                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                    world_x = 0;
+                    animation_frame = 0;
+                    game_started = 0;
+                    start_time = time(NULL);
+                    elapsed_seconds = 0;
+                    game_paused = 0;
+                    gravity = 2;
+                    player_lives = 3;
 
-                            // Réinitialisation du jeu
-                            player_x = 100;
-                            player_y = 300;
-                            player_speed_y = 0;
-                            player_scale = 12;
-                            player = copy_bitmap_with_transparency(player_original, player_scale);
-                            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-                            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-                            world_x = 0;
-                            animation_frame = 0;
-                            game_started = 0;
-                            start_time = time(NULL);
-                            elapsed_seconds = 0;
-                            game_paused = 0;
-                            gravity = 2;
-                            player_lives = 3;
+                    egg_active = 1;
+                    eggr_active = 1;
+                    eggg_active = 1;
+                    bombe_active = 1;
+                    bombe_x = 2500;
+                    bombe_y = 100;
+                    bombe_vy = 0.0;
+                    bombe_visible = 0;
+                    bombe_explose = 0;
+                    explosion_frame = 0;
+                    explosion_timer = 0;
 
-                            egg_active = 1;
-                            eggr_active = 1;
-                            eggg_active = 1;
-                            bombe_active = 1;
-                            bombe_x = 2500;
-                            bombe_y = 100;
-                            bombe_vy = 0.0;
-                            bombe_visible = 0;
-                            bombe_explose = 0;
-                            explosion_frame = 0;
-                            explosion_timer = 0;
+                    // --- LANCER FORCÉ DU NIVEAU 1 ---
+                    selected_level = 0;
+                    load_map_for_selected_level();
+                    play_sample(neige_sound, 100, 128, 1000, FALSE);
 
-                            game_state = PLAYING;
-
-                            switch (selected_level) {
-                            case 0: play_sample(jungle_sound, 100, 128, 1000, FALSE); break;
-                            case 1: play_sample(neige_sound, 100, 128, 1000, FALSE); break;
-                            case 2: play_sample(feu_sound, 100, 128, 1000, FALSE); break;
-                            }
-
-                        } else if (i == 1) { // Quitter
-                            game_state = MENU;
-                            game_started = 0;
-                            selected_level = -1;
-                        }
-
-                        choice_made = 1;
-                    }
+                    game_state = PLAYING;
+                }
+                else {  // Quitter → retour menu
+                    game_state = MENU;
+                    game_started = 0;
+                    selected_level = -1;
                 }
 
-            } else {
-                rectfill(buffer, button_x, button_y, button_x + button_w, button_y + button_h, makecol(80, 80, 150));
+                choice_made = 1;
             }
-
-            textout_centre_ex(buffer, font, options[i], GAME_SCREEN_W / 2, button_y + 15, makecol(255, 255, 255), -1);
         }
 
         blit(buffer, screen, 0, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
     }
 }
+
 
 
 void show_victory_screen(){
