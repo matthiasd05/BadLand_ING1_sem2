@@ -166,7 +166,7 @@ BITMAP* copy_bitmap_with_transparency(BITMAP *src, int scale_factor) {
 
     return result;
 }
-
+// Sous-programmes
 void init();
 void deinit();
 void update_physics();
