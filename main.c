@@ -867,7 +867,7 @@ void show_end_screen() {
 
     int button_w = 200;
     int button_h = 50;
-    int start_y = 250; // Position verticale de départ pour les boutons
+    int start_y = GAME_SCREEN_H - 200; // Met les boutons en bas de l'écran
     const char *options[] = {"Rejouer", "Quitter"};
 
     int choice_made = 0;
@@ -882,7 +882,8 @@ void show_end_screen() {
 
         for (int i = 0; i < 2; i++) {
             int button_x = (GAME_SCREEN_W - button_w) / 2;
-            int button_y = start_y + i * 100;
+            int button_y = start_y + i * (button_h + 20);  // 20 pixels d'espace entre les boutons
+
 
             int mouse_over = (my_mouse_x >= button_x && my_mouse_x <= button_x + button_w &&
                               my_mouse_y >= button_y && my_mouse_y <= button_y + button_h);
