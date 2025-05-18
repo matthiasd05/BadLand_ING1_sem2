@@ -122,6 +122,7 @@ BITMAP *obstacle;
 BITMAP *eggblue;
 BITMAP *eggred;
 BITMAP *egggreen;
+BITMAP *egggrey;
 BITMAP *bombe;
 BITMAP *explosion1, *explosion2, *explosion3;
 BITMAP *roue;
@@ -154,6 +155,11 @@ int eggg_x = 2350; // Position initiale dans le monde
 int eggg_y = 260;
 int eggg_active = 1; // 1 = actif, 0 = déjà collecté
 time_t eggg_collected_time = 0;
+
+int egggrey_x = 300; // Position initiale dans le monde
+int egggrey_y = 250;
+int egggrey_active = 1; // 1 = actif, 0 = déjà collecté
+time_t egggrey_collected_time = 0;
 
 int player_x = 100;
 int player_y = 300;
@@ -199,6 +205,8 @@ int obstacle_positions[MAX_OBSTACLES][2] = {
 int obstacle2_positions[MAX_OBSTACLES][2] = {
         {1600, 200},
         {1750, 480},
+        {4000, 150},
+        {5000, 350},
         {5650, 450},
         {5900, 280},
 
@@ -360,6 +368,14 @@ void init() {
         allegro_message("Erreur chargement egggreen.bmp !");
         exit(1);
     }
+
+    egggrey= load_bitmap("egggrey.bmp", NULL);
+    egggrey = copy_bitmap_with_transparency(egggrey, 2);
+    if (!egggrey) {
+        allegro_message("Erreur chargement egggrey.bmp !");
+        exit(1);
+    }
+
     bombe = load_bitmap("bombe.bmp", NULL);
     bombe = copy_bitmap_with_transparency(bombe, 2);  // utilise ton système de transparence
     if (!bombe) {
@@ -658,105 +674,21 @@ void update_physics() {
     }
 
     // 10bis) — ramassage œuf bleu (niveau 1)
-    if (selected_level == 1 && egg_active) {
-        int egg_screen_x = egg_x - world_x;
-        int egg_screen_y = egg_y;
-        int pr = player_x + player->w;
-        int pb = player_y + player->h;
-        // on vérifie bien que le joueur touche l’œuf à l’écran :
-        if (pr > egg_screen_x &&
-            player_x < egg_screen_x + eggblue->w &&
-            pb > egg_screen_y &&
-            player_y < egg_screen_y + eggblue->h) {
-            egg_active = 0;
-            player_scale = 40;
-            destroy_bitmap(player);
-            player  = copy_bitmap_with_transparency(player_original, player_scale);
-            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-            player_small = 1;
-            egg_collected_time = time(NULL);
-            gravity = REDUCED_GRAVITY;
-            }
-    }
-
-    // 10ter) — ramassage œuf rouge (niveau 1)
-    if (selected_level == 1 && eggr_active) {
-        int eggr_screen_x = eggr_x - world_x;
-        int eggr_screen_y = eggr_y;
-        int pr = player_x + player->w, pb = player_y + player->h;
-        if (pr > eggr_screen_x &&
-            player_x < eggr_screen_x + eggred->w &&
-            pb > eggr_screen_y &&
-            player_y < eggr_screen_y + eggred->h) {
-            eggr_active = 0;
-            player_scale = 5;
-            destroy_bitmap(player);
-            player  = copy_bitmap_with_transparency(player_original, player_scale);
-            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-            player_small = 1;
-            egg_collected_time = time(NULL);
-            gravity = AUGM_GRAVITY;
-        }
-    }
-
-    // 10quater) — ramassage œuf bleu (niveau 2)
-    if (selected_level == 2 && egg_active) {
-        int egg_screen_x = egg_x - world_x, egg_screen_y = egg_y;
-        int pr = player_x + player->w, pb = player_y + player->h;
-        if (pr > egg_screen_x &&
-            player_x < egg_screen_x + eggblue->w &&
-            pb > egg_screen_y &&
-            player_y < egg_screen_y + eggblue->h) {
-            egg_active = 0;
-            player_scale = 40;
-            destroy_bitmap(player);
-            player  = copy_bitmap_with_transparency(player_original, player_scale);
-            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-            player_small = 1;
-            egg_collected_time = time(NULL);
-            gravity = REDUCED_GRAVITY;
-        }
-    }
-
-    // 10quint) — ramassage œuf vert (niveau 2)
-    if (selected_level == 2 && eggg_active) {
-        int eggg_screen_x = eggg_x - world_x, eggg_screen_y = eggg_y;
-        int pr = player_x + player->w, pb = player_y + player->h;
-        if (pr > eggg_screen_x &&
-            player_x < eggg_screen_x + egggreen->w &&
-            pb > eggg_screen_y &&
-            player_y < eggg_screen_y + egggreen->h) {
-            eggg_active = 0;
-            eggg_collected_time = time(NULL);
-            // ... déclencher bonus vert ici ...
-        }
-    }
-
-    // 10sex) — expiration de l’effet « œuf » (tous niveaux)
-    if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
-        player_scale = 12;
-        destroy_bitmap(player);
-        player  = copy_bitmap_with_transparency(player_original, player_scale);
-        player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-        player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-        player_small = 0;
-        gravity = 2;
-    }
-
-
-    // 11) Collisions obstacles / roues / bombe → même logique que le mur à droite
-    int pr = player_x + player->w, pb = player_y + player->h;
     if (selected_level == 1) {
-        // obstacles tournants
+        int player_right = player_x + player->w;
+        int player_bottom = player_y + player->h;
+
         for (int i = 0; i < MAX_OBSTACLES; i++) {
-            int ox = obstacle_positions[i][0] - world_x;
-            int oy = obstacle_positions[i][1];
-            if (pr > ox && player_x < ox + obstacle->w &&
-                pb > oy && player_y < oy + obstacle->h) {
-                // on « meurt » :
+            int obs_screen_x = obstacle_positions[i][0] - world_x;
+            int obs_screen_y = obstacle_positions[i][1];
+            int obs_right = obs_screen_x + obstacle->w;
+            int obs_bottom = obs_screen_y + obstacle->h;
+
+            if (player_right > obs_screen_x &&
+                player_x < obs_right &&
+                player_bottom > obs_screen_y &&
+                player_y < obs_bottom) {
+                // Collision avec un obstacle
                 player_lives--;
                 if (player_lives > 0) {
                     // reset simple, même que pour le mur
@@ -777,134 +709,80 @@ void update_physics() {
                 return;
             }
         }
-    }
-    else if (selected_level == 2) {
-        // obstacles « normaux »
-        for (int i = 0; i < MAX_OBSTACLES; i++) {
-            int ox = obstacle2_positions[i][0] - world_x;
-            int oy = obstacle2_positions[i][1];
-            if (pr > ox && player_x < ox + obstacle->w &&
-                pb > oy && player_y < oy + obstacle->h) {
-                player_lives--;
-                if (player_lives > 0) {
-                    player_x = 100; player_y = 300; player_speed_y = 0;
-                    world_x = 0; game_started = 0; start_time = time(NULL);
-                    egg_active = eggr_active = eggg_active = 1;
-                    bombe_visible = bombe_active = 1;
-                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0; bombe_explose = 0;
-                    player_scale = 12; gravity = 2;
-                    destroy_bitmap(player);
-                    player  = copy_bitmap_with_transparency(player_original, player_scale);
-                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-                } else {
-                    show_end_screen();
-                    return;
-                }
-                return;
+        if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
+            player_scale = 12; // Restaure la taille normale
+            player = copy_bitmap_with_transparency(player_original, player_scale);
+            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+            player_small = 0;
+            gravity = 2;  // Restaure la gravité normale
+        }
+        if (egg_active) {
+            int egg_screen_x = egg_x - world_x;
+            int player_right = player_x + player->w;
+            int player_bottom = player_y + player->h;
+
+            if (player_right > egg_screen_x &&
+                player_x < egg_screen_x + eggblue->w &&
+                player_bottom > egg_y &&
+                player_y < egg_y + eggblue->h) {
+
+                egg_active = 0;
+                player_scale = 40;
+                player = copy_bitmap_with_transparency(player_original, player_scale);
+                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                player_small = 1;
+                egg_collected_time = time(NULL);
+                gravity = REDUCED_GRAVITY;
             }
         }
-        // roues
-        for (int i = 0; i < MAX_OBSTACLES; i++) {
-            int rx = roue_positions[i][0] - world_x;
-            int ry = roue_positions[i][1];
-            if (pr > rx && player_x < rx + roue->w &&
-                pb > ry && player_y < ry + roue->h) {
-                player_lives--;
-                if (player_lives > 0) {
-                    player_x = 100; player_y = 300; player_speed_y = 0;
-                    world_x = 0; game_started = 0; start_time = time(NULL);
-                    egg_active = eggr_active = eggg_active = 1;
-                    bombe_visible = bombe_active = 1;
-                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0; bombe_explose = 0;
-                    player_scale = 12; gravity = 2;
-                    destroy_bitmap(player);
-                    player  = copy_bitmap_with_transparency(player_original, player_scale);
-                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-                } else {
-                    show_end_screen();
-                    return;
-                }
-                return;
+        if (eggr_active) {
+            int eggr_screen_x = eggr_x - world_x;
+            int player_right = player_x + player->w;
+            int player_bottom = player_y + player->h;
+
+            if (player_right > eggr_screen_x &&
+                player_x < eggr_screen_x + eggred->w &&
+                player_bottom > eggr_y &&
+                player_y < eggr_y + eggred->h) {
+
+                eggr_active = 0; // Désactive l'œuf après collecte
+                player_scale = 5; // augmentet la taille
+                player = copy_bitmap_with_transparency(player_original, player_scale);
+                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                player_small = 1;
+                egg_collected_time = time(NULL); // Enregistre le temps
+                gravity = AUGM_GRAVITY ; // AUGMENTE la gravité
             }
         }
-        // bombe
-        if (bombe_visible && bombe_active) {
-            int bx = bombe_x - world_x, by = bombe_y;
-            if (pr > bx && player_x < bx + bombe->w &&
-                pb > by && player_y < by + bombe->h) {
-                player_lives--;
-                if (player_lives > 0) {
-                    player_x = 100; player_y = 300; player_speed_y = 0;
-                    world_x = 0; game_started = 0; start_time = time(NULL);
-                    egg_active = eggr_active = eggg_active = 1;
-                    bombe_visible = bombe_active = 1;
-                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0; bombe_explose = 0;
-                    player_scale = 12; gravity = 2;
-                    destroy_bitmap(player);
-                    player  = copy_bitmap_with_transparency(player_original, player_scale);
-                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-                } else {
-                    show_end_screen();
-                    return;
-                }
-                return;
-            }
-        }
-        // continuer à gérer la chute/explosion de la bombe ici…
     }
 
-    // Niveau 1 : obstacles tournants + œufs
-    if (selected_level == 1) {
-        int pr = player_x + player->w, pb = player_y + player->h;
-        for (int i = 0; i < MAX_OBSTACLES; i++) {
-            int ox = obstacle_positions[i][0] - world_x;
-            int oy = obstacle_positions[i][1];
-            if (pr > ox && player_x < ox + obstacle->w &&
-                pb > oy && player_y < oy + obstacle->h) {
-                // même code de "mort" qu'au mur
-                player_lives--;
-                if (player_lives > 0) {
-                    player_x       = 100; player_y       = 300;
-                    player_speed_y = 0;   world_x        = 0;
-                    game_started   = 0;   start_time     = time(NULL);
-                    egg_active = eggr_active = eggg_active = 1;
-                    bombe_visible = bombe_active = 1;
-                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0.0; bombe_explose = 0;
-                    player_scale = 12; gravity = 2;
-                    destroy_bitmap(player);
-                    player  = copy_bitmap_with_transparency(player_original, player_scale);
-                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-                } else {
-                    show_end_screen();
-                    return;
-                }
-                return;
-            }
-        }
-        // œufs (inchangé, restent sous forme de bonus)
-    }
 
-    // Niveau 2 : obstacles + roues + œufs + bombe
     if (selected_level == 2) {
-        int pr = player_x + player->w, pb = player_y + player->h;
-        // obstacles “normaux”
+        int player_right = player_x + player->w;
+        int player_bottom = player_y + player->h;
+
         for (int i = 0; i < MAX_OBSTACLES; i++) {
-            int ox = obstacle2_positions[i][0] - world_x;
-            int oy = obstacle2_positions[i][1];
-            if (pr > ox && player_x < ox + obstacle->w &&
-                pb > oy && player_y < oy + obstacle->h) {
+            int obs2_screen_x = obstacle2_positions[i][0] - world_x;
+            int obs2_screen_y = obstacle2_positions[i][1];
+            int obs_right = obs2_screen_x + obstacle->w;
+            int obs_bottom = obs2_screen_y + obstacle->h;
+
+            if (player_right > obs2_screen_x &&
+                player_x < obs_right &&
+                player_bottom > obs2_screen_y &&
+                player_y < obs_bottom) {
+                // Collision avec un obstacle
                 player_lives--;
                 if (player_lives > 0) {
-                    player_x       = 100; player_y       = 300;
-                    player_speed_y = 0;   world_x        = 0;
-                    game_started   = 0;   start_time     = time(NULL);
-                    egg_active = eggr_active = eggg_active = 1;
+                    // reset simple, même que pour le mur
+                    player_x = 100; player_y = 300; player_speed_y = 0;
+                    world_x = 0; game_started = 0; start_time = time(NULL);
+                    egg_active = eggr_active = eggg_active = egggrey_active = 1;
                     bombe_visible = bombe_active = 1;
-                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0.0; bombe_explose = 0;
+                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0; bombe_explose = 0;
                     player_scale = 12; gravity = 2;
                     destroy_bitmap(player);
                     player  = copy_bitmap_with_transparency(player_original, player_scale);
@@ -917,20 +795,148 @@ void update_physics() {
                 return;
             }
         }
-        // roues
         for (int i = 0; i < MAX_OBSTACLES; i++) {
-            int rx = roue_positions[i][0] - world_x;
-            int ry = roue_positions[i][1];
-            if (pr > rx && player_x < rx + roue->w &&
-                pb > ry && player_y < ry + roue->h) {
+            int roue_screen_x = roue_positions[i][0] - world_x;
+            int roue_screen_y = roue_positions[i][1];
+            int roue_right = roue_screen_x + roue->w;
+            int roue_bottom = roue_screen_y + roue->h;
+
+
+            if (player_right > roue_screen_x &&
+                player_x < roue_right &&
+                player_bottom > roue_screen_y &&
+                player_y < roue_bottom) {
+                // Collision avec un obstacle
                 player_lives--;
                 if (player_lives > 0) {
-                    player_x       = 100; player_y       = 300;
-                    player_speed_y = 0;   world_x        = 0;
-                    game_started   = 0;   start_time     = time(NULL);
+                    // reset simple, même que pour le mur
+                    player_x = 100; player_y = 300; player_speed_y = 0;
+                    world_x = 0; game_started = 0; start_time = time(NULL);
+                    egg_active = eggr_active = eggg_active = egggrey_active = 1;
+                    bombe_visible = bombe_active = 1;
+                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0; bombe_explose = 0;
+                    player_scale = 12; gravity = 2;
+                    destroy_bitmap(player);
+                    player  = copy_bitmap_with_transparency(player_original, player_scale);
+                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                } else {
+                    show_end_screen();
+                    return;
+                }
+                return;
+            }
+
+        }
+
+        if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
+            player_scale = 12; // Restaure la taille normale
+            player = copy_bitmap_with_transparency(player_original, player_scale);
+            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+            player_small = 0;
+            gravity = 2;  // Restaure la gravité normale
+        }
+
+// Vérifie la collision avec l'œuf
+        if (egg_active) {
+            int egg_screen_x = egg_x - world_x;
+            int player_right = player_x + player->w;
+            int player_bottom = player_y + player->h;
+
+            if (player_right > egg_screen_x &&
+                player_x < egg_screen_x + eggblue->w &&
+                player_bottom > egg_y &&
+                player_y < egg_y + eggblue->h) {
+
+                egg_active = 0; // Désactive l'œuf après collecte
+                player_scale = 40; // Réduit la taille
+                player = copy_bitmap_with_transparency(player_original, player_scale);
+                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                player_small = 1;
+                egg_collected_time = time(NULL); // Enregistre le temps
+                gravity = REDUCED_GRAVITY; // Réduit la gravité
+            }
+        }
+        // COLLISION AVEC L'ŒUF VERT
+        // Collision avec l'œuf vert
+        if (eggg_active && player_x + player->w >= eggg_x - world_x &&
+            player_x <= eggg_x - world_x + egggreen->w &&
+            player_y + player->h >= eggg_y &&
+            player_y <= eggg_y + egggreen->h) {
+
+            eggg_active = 0;
+            eggg_collected_time = time(NULL);
+            scrollspeed = 2;
+            bombe_active = 1; // Active la bombe
+            bombe_visible = 1;
+            bombe_x = 2700; // Place la bombe au-dessus du joueur ou d'une position fixe
+            bombe_y = 75;      // Commence en haut de l'écran
+            bombe_vy = 0.0;
+            // Réduction immédiate
+            player_scale = 40; // taille réduite
+            destroy_bitmap(player);
+            player = copy_bitmap_with_transparency(player_original, player_scale);
+            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+        }
+// Vérifie si 2 secondes se sont écoulées après avoir touché l'œuf vert
+        if (!eggg_active && eggg_collected_time != 0) {
+            if (difftime(time(NULL), eggg_collected_time) >= 2.0) {
+                scrollspeed = 10;
+                player_scale = 12;
+                gravity = 3;// retour à la taille normale
+                destroy_bitmap(player);
+                player = copy_bitmap_with_transparency(player_original, player_scale);
+                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                eggg_collected_time = 0; // réinitialiser pour ne pas répéter
+            }
+        }
+
+        if (eggg_collected_time > 0) {
+            int effect_duration = (int) difftime(time(NULL), eggg_collected_time);
+            if (effect_duration >= EGG_EFFECT_DURATION) {
+                scrollspeed = 2;// retour à la normale
+                eggg_collected_time = 0; // désactive le chrono
+            }
+        }
+        if (egggrey_active) {
+            int egggrey_screen_x = egggrey_x - world_x;
+            int player_right = player_x + player->w;
+            int player_bottom = player_y + player->h;
+
+            if (player_right > egggrey_screen_x &&
+                player_x < egggrey_screen_x + egggrey->w &&
+                player_bottom > egggrey_y &&
+                player_y < egggrey_y + egggrey->h) {
+
+                egggrey_active = 0; // Désactive l'œuf après collecte
+
+                player = copy_bitmap_with_transparency(player_original, player_scale);
+                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                egggrey_collected_time = time(NULL); // Enregistre le temps
+
+            }
+        }
+        if (bombe_active) {
+            int player_right = player_x + player->w;
+            int player_bottom = player_y + player->h;
+
+            if (player_right > bombe_x - world_x &&
+                player_x < bombe_x - world_x + bombe->w &&
+                player_bottom > bombe_y &&
+                player_y < bombe_y + bombe->h) {
+                player_lives--;
+                if (player_lives > 0) {
+                    // reset simple, même que pour le mur
+                    player_x = 100; player_y = 300; player_speed_y = 0;
+                    world_x = 0; game_started = 0; start_time = time(NULL);
                     egg_active = eggr_active = eggg_active = 1;
                     bombe_visible = bombe_active = 1;
-                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0.0; bombe_explose = 0;
+                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0; bombe_explose = 0;
                     player_scale = 12; gravity = 2;
                     destroy_bitmap(player);
                     player  = copy_bitmap_with_transparency(player_original, player_scale);
@@ -943,44 +949,19 @@ void update_physics() {
                 return;
             }
         }
-        // bombe
-        if (bombe_visible && bombe_active) {
-            int bx = bombe_x - world_x, by = bombe_y;
-            if (pr > bx && player_x < bx + bombe->w &&
-                pb > by && player_y < by + bombe->h) {
-                player_lives--;
-                if (player_lives > 0) {
-                    player_x       = 100; player_y       = 300;
-                    player_speed_y = 0;   world_x        = 0;
-                    game_started   = 0;   start_time     = time(NULL);
-                    egg_active = eggr_active = eggg_active = 1;
-                    bombe_visible = bombe_active = 1;
-                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0.0; bombe_explose = 0;
-                    player_scale = 12; gravity = 2;
-                    destroy_bitmap(player);
-                    player  = copy_bitmap_with_transparency(player_original, player_scale);
-                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-                } else {
-                    show_end_screen();
-                    return;
-                }
-                return;
-            }
-        }
-        // chute + explosion de la bombe (inchangé)
-        if (bombe_active && !bombe_explose) {
+        //Simuler la chute de la bombe
+        if (selected_level == 2 && bombe_active && !bombe_explose) {
             bombe_vy += bombe_gravity;
             bombe_y += bombe_vy;
+
             if (bombe_collide_with_map()) {
                 bombe_explose = 1;
                 bombe_active = 0;
-                explosion_timer = explosion_frame = 0;
+                explosion_timer = 0;
+                explosion_frame = 0;
             }
         }
     }
-
-    // fin de update_physics()
 }
 
 
