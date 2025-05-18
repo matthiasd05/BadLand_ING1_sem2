@@ -181,7 +181,12 @@ void draw_menu();
 void draw_level_selection();
 void draw();
 void show_victory_screen();
+void handle_level_completion();
 void play_music(SAMPLE* music);
+void show_pause_screen();
+void draw_rotating_obstacle(int x, int y);
+void draw_rotating_roue(int x, int y);
+void load_map_for_selected_level();
 
 void init() {
     allegro_init();
@@ -630,7 +635,7 @@ void update_physics() {
             player_x < flag_right &&
             player_bottom > flag_world_y &&
             player_y < flag_bottom) {
-            show_victory_screen();
+            handle_level_completion();
         }
     }
 
@@ -983,6 +988,59 @@ void show_victory_screen(){
     player_speed_y = 0;
     clear_keybuf();
 }
+
+void handle_level_completion() {
+    stop_sample(nature_sound);
+    stop_sample(neige_sound);
+    stop_sample(feu_sound);
+    play_sample(victoire_sound, 100, 128, 1000, FALSE);
+
+    rest(1000); // Petite pause de transition
+
+    if (selected_level < NUM_LEVELS - 1) {
+        // Passer au niveau suivant
+        selected_level++;
+        player_x = 100;
+        player_y = 300;
+        world_x = 0;
+        player_speed_y = 0;
+        player_scale = 12;
+        gravity = 2;
+        player = copy_bitmap_with_transparency(player_original, player_scale);
+        player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+        player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+
+        egg_active = 1;
+        eggr_active = 1;
+        eggg_active = 1;
+        bombe_active = 1;
+        bombe_x = 2500;
+        bombe_y = 100;
+        bombe_vy = 0.0;
+        bombe_visible = 0;
+        bombe_explose = 0;
+        explosion_frame = 0;
+        explosion_timer = 0;
+
+        game_started = 0;
+        start_time = time(NULL);
+        elapsed_seconds = 0;
+        game_paused = 0;
+
+        load_map_for_selected_level();
+        game_state = PLAYING;
+
+        switch (selected_level) {
+            case 0: play_sample(nature_sound, 100, 128, 1000, FALSE); break;
+            case 1: play_sample(neige_sound, 100, 128, 1000, FALSE); break;
+            case 2: play_sample(feu_sound, 100, 128, 1000, FALSE); break;
+        }
+    } else {
+        // Fin du dernier niveau : écran de victoire
+        show_victory_screen();
+    }
+}
+
 void show_pause_screen(){
     clear_to_color(buffer, makecol(0, 0, 0)); // fond noir
     textout_centre_ex(buffer, font, "PAUSE", GAME_SCREEN_W / 2, GAME_SCREEN_H / 2 - 20, makecol(255, 255, 255), -1);
