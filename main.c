@@ -56,7 +56,6 @@ void sauvegarder_niveau_pseudo(const char* pseudo, int niveau) {
         }
     }
 }
-
 int charger_niveau_pseudo(const char* pseudo) {
     FILE *file = fopen(SAVE_FILE, "r");
     if (!file) return -1;
