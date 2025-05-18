@@ -61,7 +61,9 @@ BITMAP *egggreen;
 BITMAP *bombe;
 BITMAP *explosion1, *explosion2, *explosion3;
 BITMAP *roue;
+BITMAP *heart_icon;
 
+int player_lives = 3;
 
 int bombe_x = 2500;
 int bombe_y = 100;
@@ -408,6 +410,14 @@ void init() {
     int top_of_block = (GAME_SCREEN_H - total_block_height) / 2;
 
     play_button_y = top_of_block + logo_height + spacing_between;
+
+    BITMAP *heart_original = load_bitmap("coeur.bmp", NULL);
+    if (!heart_original) {
+        allegro_message("Erreur chargement coeur.bmp !");
+        exit(1);
+    }
+    heart_icon = copy_bitmap_with_transparency(heart_original, 5);  // Réduit à 20%
+    destroy_bitmap(heart_original);
 }
 
 void deinit() {
@@ -428,6 +438,7 @@ void deinit() {
     destroy_bitmap(end_screen_image);
     destroy_bitmap(background2);
     destroy_bitmap(background3);
+    destroy_bitmap(heart_icon);
 
 }
 int bombe_collide_with_map() {
@@ -452,28 +463,22 @@ int bombe_collide_with_map() {
     return 0;
 }
 
+
 void update_physics() {
-    // Vitesse de scrolling dépend du niveau sélectionné
+    // 1) Ajuste de la vitesse de défilement selon le niveau
     switch (selected_level) {
-        case 0:
-            scrollspeed = 4;
-            break;
-        case 1:
-            scrollspeed = 4;
-            break;
-        case 2:
-            scrollspeed = 6;
-                break;
-        default:
-            scrollspeed = 2;
-            break;
+        case 0: scrollspeed = 4; break;
+        case 1: scrollspeed = 4; break;
+        case 2: scrollspeed = 6; break;
+        default: scrollspeed = 2; break;
     }
 
+    // 2) Ne rien faire si on n'est pas en train de jouer
     if (game_state != PLAYING) return;
 
     static int player_blocked_right = 0;
 
-    // Gestion du saut du joueur
+    // 3) Saut
     if (key[KEY_SPACE]) {
         player_speed_y = JUMP_STRENGTH;
         if (!game_started) {
@@ -482,380 +487,451 @@ void update_physics() {
         }
     }
 
-    // Gestion de la gravité
+    // 4) Gravité
     player_speed_y += gravity;
     int new_y = player_y + player_speed_y;
-
     player_blocked_right = 0;
 
+    // 5) Collisions haut / bas
     if (map_overlay) {
         int collision = 0;
-
-        // COLLISION BAS
+        // bas
         if (player_speed_y > 0) {
             for (int x = 0; x < player->w; x++) {
                 int px = player_x + x + world_x;
                 int py = new_y + player->h;
-                if (py < GAME_SCREEN_H && px >= 0 && px < map_overlay->w) {
-                    int color = getpixel(map_overlay, px, py);
-                    if (color == makecol(0, 0, 0)) {
-                        collision = 1;
-                        break;
-                    }
+                if (py < GAME_SCREEN_H && px >= 0 && px < map_overlay->w &&
+                    getpixel(map_overlay, px, py) == makecol(0,0,0)) {
+                    collision = 1; break;
                 }
             }
-            if (collision) {
-                player_speed_y = 0;
-            } else {
-                player_y = new_y;
-            }
+            if (collision) player_speed_y = 0;
+            else           player_y = new_y;
         }
-            // COLLISION HAUT
+        // haut
         else if (player_speed_y < 0) {
             for (int x = 0; x < player->w; x++) {
                 int px = player_x + x + world_x;
                 int py = new_y;
-                if (py >= 0 && px >= 0 && px < map_overlay->w) {
-                    int color = getpixel(map_overlay, px, py);
-                    if (color == makecol(0, 0, 0)) {
-                        collision = 1;
-                        break;
-                    }
+                if (py >= 0 && px >= 0 && px < map_overlay->w &&
+                    getpixel(map_overlay, px, py) == makecol(0,0,0)) {
+                    collision = 1; break;
                 }
             }
-            if (collision) {
-                player_speed_y = 0;
-            } else {
-                player_y = new_y;
-            }
-        } else {
+            if (collision) player_speed_y = 0;
+            else           player_y = new_y;
+        }
+        else {
             player_y = new_y;
         }
 
-        // DÉTECTION DU MUR À DROITE
-        int player_front_x = player_x + player->w + world_x;
-        int collision_front = 0;
-
-        for (int y = 0; y < player->h; y++) {
-            int map_y = player_y + y;
-            if (player_front_x >= 0 && player_front_x < map_overlay->w &&
-                map_y >= 0 && map_y < map_overlay->h) {
-                int color = getpixel(map_overlay, player_front_x, map_y);
-                if (color == makecol(0, 0, 0)) {
-                    collision_front = 1;
+        // mur à droite
+        {
+            int fx = player_x + player->w + world_x;
+            for (int y = 0; y < player->h; y++) {
+                int my = player_y + y;
+                if (fx >= 0 && fx < map_overlay->w && my >= 0 && my < map_overlay->h &&
+                    getpixel(map_overlay, fx, my) == makecol(0,0,0)) {
+                    player_blocked_right = 1;
                     break;
                 }
             }
         }
-
-        if (collision_front) {
-            player_blocked_right = 1;
-        } else {
-            player_blocked_right = 0;
-        }
-
     } else {
-        // Pas de map : libre
+        // pas de map
         player_y = new_y;
-
-        if (player_y > GAME_SCREEN_H - player->h) {
-            player_y = GAME_SCREEN_H - player->h;
-            player_speed_y = 0;
-        }
-        if (player_y < 0) {
-            player_y = 0;
-            player_speed_y = 0;
-        }
-    }
-    if (key[KEY_P]) {
-        game_paused = !game_paused;
-        rest (200);
-        // pour éviter les doubles déclenchements trop rapides
+        if (player_y > GAME_SCREEN_H - player->h) { player_y = GAME_SCREEN_H - player->h; player_speed_y = 0; }
+        if (player_y < 0)                         { player_y = 0;                         player_speed_y = 0; }
     }
 
+    // 6) Pause
+    if (key[KEY_P]) { game_paused = !game_paused; rest(200); }
 
+    // 7) Sécurité verticale
+    if (player_y > GAME_SCREEN_H - player->h) { player_y = GAME_SCREEN_H - player->h; player_speed_y = 0; }
+    if (player_y < 0)                         { player_y = 0;                         player_speed_y = 0; }
 
-    // Sécurité verticale
-    if (player_y > GAME_SCREEN_H - player->h) {
-        player_y = GAME_SCREEN_H - player->h;
-        player_speed_y = 0;
-    }
-    if (player_y < 0) {
-        player_y = 0;
-        player_speed_y = 0;
-    }
-
-    // SCROLLING CONSTANT
+    // 8) Scrolling
     if (game_started) {
-        // Défilement constant du fond
         world_x += scrollspeed;
-        if (world_x >= background->w) {
-            world_x = 0;
-        }
+        if (world_x >= background->w) world_x = 0;
     }
 
+    // 9) Mort si mur à droite (retourne au début du niveau ou menu)
     if (player_blocked_right) {
         player_x -= scrollspeed;
-
         if (player_x + player->w < 0) {
-            int blink = 0;
-            clear_keybuf();
-            while (!key[KEY_ENTER]) {
-                // 1) Prépare le buffer
-                show_end_screen();
-
-                if (blink) {
-                    textout_centre_ex(buffer, font, "Appuyer sur ENTRER pour quitter",
-                                      GAME_SCREEN_W/2,
-                                      GAME_SCREEN_H/2 + text_height(font),
-                                      makecol(255,255,255), -1);
-                }
-
-                blit(buffer, screen, 0,0, 0,0, GAME_SCREEN_W, GAME_SCREEN_H);
-
-                blink = !blink;
-                rest(500);
-
+            player_lives--;
+            if (player_lives > 0) {
+                // ré-init joueur + objets du niveau
+                player_x       = 100; player_y       = 300;
+                player_speed_y = 0;   world_x        = 0;
+                game_started   = 0;   start_time     = time(NULL);
+                egg_active = eggr_active = eggg_active = 1;
+                bombe_visible = bombe_active = 1;
+                bombe_x = 2500; bombe_y = 100; bombe_vy = 0.0; bombe_explose = 0;
+                player_scale = 12; gravity = 2;
+                destroy_bitmap(player);
+                player  = copy_bitmap_with_transparency(player_original, player_scale);
+                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+            } else {
+                // plus de vies → retour au menu
+                player_lives   = 3;
+                selected_level = -1;
+                game_state     = MENU;
             }
+            return;
         }
     }
-    // Vérifie collision avec le drapeau de fin (winflag)
+
+        // 10) Fin de niveau (drapeau)
     if (selected_level >= 0 && selected_level < NUM_LEVELS) {
-        int flag_world_x = winflag_positions[selected_level][0];
-        int flag_world_y = winflag_positions[selected_level][1];
-
-        int flag_screen_x = flag_world_x - world_x;
-        int flag_right = flag_screen_x + winflag->w;
-        int flag_bottom = flag_world_y + winflag->h;
-
-        int player_right = player_x + player->w;
-        int player_bottom = player_y + player->h;
-
-        if (player_right > flag_screen_x &&
-            player_x < flag_right &&
-            player_bottom > flag_world_y &&
-            player_y < flag_bottom) {
+        int fx = winflag_positions[selected_level][0] - world_x;
+        int fy = winflag_positions[selected_level][1];
+        int pw = player_x + player->w, ph = player_y + player->h;
+        if (pw > fx && player_x < fx + winflag->w &&
+            ph > fy && player_y < fy + winflag->h) {
             handle_level_completion();
+            return;
         }
     }
 
-
-    if (selected_level == 1) {
-        int player_right = player_x + player->w;
-        int player_bottom = player_y + player->h;
-
-        for (int i = 0; i < MAX_OBSTACLES; i++) {
-            int obs_screen_x = obstacle_positions[i][0] - world_x;
-            int obs_screen_y = obstacle_positions[i][1];
-            int obs_right = obs_screen_x + obstacle->w;
-            int obs_bottom = obs_screen_y + obstacle->h;
-
-            if (player_right > obs_screen_x &&
-                player_x < obs_right &&
-                player_bottom > obs_screen_y &&
-                player_y < obs_bottom) {
-                // Collision avec un obstacle
-                game_state = END_SCREEN;
-                show_end_screen();
-                break;
-            }
-        }
-        if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
-            player_scale = 12; // Restaure la taille normale
-            player = copy_bitmap_with_transparency(player_original, player_scale);
+    // 10bis) — ramassage œuf bleu (niveau 1)
+    if (selected_level == 1 && egg_active) {
+        int egg_screen_x = egg_x - world_x;
+        int egg_screen_y = egg_y;
+        int pr = player_x + player->w;
+        int pb = player_y + player->h;
+        // on vérifie bien que le joueur touche l’œuf à l’écran :
+        if (pr > egg_screen_x &&
+            player_x < egg_screen_x + eggblue->w &&
+            pb > egg_screen_y &&
+            player_y < egg_screen_y + eggblue->h) {
+            egg_active = 0;
+            player_scale = 40;
+            destroy_bitmap(player);
+            player  = copy_bitmap_with_transparency(player_original, player_scale);
             player1 = copy_bitmap_with_transparency(player1_original, player_scale);
             player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-            player_small = 0;
-            gravity = 2;  // Restaure la gravité normale
-        }
-// Vérifie la collision avec l'œuf
-        if (egg_active) {
-            int egg_screen_x = egg_x - world_x;
-            int player_right = player_x + player->w;
-            int player_bottom = player_y + player->h;
-
-            if (player_right > egg_screen_x &&
-                player_x < egg_screen_x + eggblue->w &&
-                player_bottom > egg_y &&
-                player_y < egg_y + eggblue->h) {
-
-                egg_active = 0;
-                player_scale = 40;
-                player = copy_bitmap_with_transparency(player_original, player_scale);
-                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-                player_small = 1;
-                egg_collected_time = time(NULL);
-                gravity = REDUCED_GRAVITY;
+            player_small = 1;
+            egg_collected_time = time(NULL);
+            gravity = REDUCED_GRAVITY;
             }
-        }
-        if (eggr_active) {
-            int eggr_screen_x = eggr_x - world_x;
-            int player_right = player_x + player->w;
-            int player_bottom = player_y + player->h;
+    }
 
-            if (player_right > eggr_screen_x &&
-                player_x < eggr_screen_x + eggred->w &&
-                player_bottom > eggr_y &&
-                player_y < eggr_y + eggred->h) {
-
-                eggr_active = 0; // Désactive l'œuf après collecte
-                player_scale = 5; // augmentet la taille
-                player = copy_bitmap_with_transparency(player_original, player_scale);
-                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-                player_small = 1;
-                egg_collected_time = time(NULL); // Enregistre le temps
-                gravity = AUGM_GRAVITY ; // AUGMENTE la gravité
-            }
+    // 10ter) — ramassage œuf rouge (niveau 1)
+    if (selected_level == 1 && eggr_active) {
+        int eggr_screen_x = eggr_x - world_x;
+        int eggr_screen_y = eggr_y;
+        int pr = player_x + player->w, pb = player_y + player->h;
+        if (pr > eggr_screen_x &&
+            player_x < eggr_screen_x + eggred->w &&
+            pb > eggr_screen_y &&
+            player_y < eggr_screen_y + eggred->h) {
+            eggr_active = 0;
+            player_scale = 5;
+            destroy_bitmap(player);
+            player  = copy_bitmap_with_transparency(player_original, player_scale);
+            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+            player_small = 1;
+            egg_collected_time = time(NULL);
+            gravity = AUGM_GRAVITY;
         }
     }
 
-    if (selected_level == 2) {
-        int player_right = player_x + player->w;
-        int player_bottom = player_y + player->h;
-
-        for (int i = 0; i < MAX_OBSTACLES; i++) {
-            int obs2_screen_x = obstacle2_positions[i][0] - world_x;
-            int obs2_screen_y = obstacle2_positions[i][1];
-            int obs_right = obs2_screen_x + obstacle->w;
-            int obs_bottom = obs2_screen_y + obstacle->h;
-
-            if (player_right > obs2_screen_x &&
-                player_x < obs_right &&
-                player_bottom > obs2_screen_y &&
-                player_y < obs_bottom) {
-                // Collision avec un obstacle
-                game_state = END_SCREEN;
-                show_end_screen();
-                break;
-            }
-        }
-        for (int i = 0; i < MAX_OBSTACLES; i++) {
-            int roue_screen_x = roue_positions[i][0] - world_x;
-            int roue_screen_y = roue_positions[i][1];
-            int roue_right = roue_screen_x + roue->w;
-            int roue_bottom = roue_screen_y + roue->h;
-
-            if (player_right > roue_screen_x &&
-                player_x < roue_right &&
-                player_bottom > roue_screen_y &&
-                player_y < roue_bottom) {
-                // Collision avec un obstacle
-                game_state = END_SCREEN;
-                show_end_screen();
-                break;
-            }
-        }
-
-        if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
-            player_scale = 12; // Restaure la taille normale
-            player = copy_bitmap_with_transparency(player_original, player_scale);
+    // 10quater) — ramassage œuf bleu (niveau 2)
+    if (selected_level == 2 && egg_active) {
+        int egg_screen_x = egg_x - world_x, egg_screen_y = egg_y;
+        int pr = player_x + player->w, pb = player_y + player->h;
+        if (pr > egg_screen_x &&
+            player_x < egg_screen_x + eggblue->w &&
+            pb > egg_screen_y &&
+            player_y < egg_screen_y + eggblue->h) {
+            egg_active = 0;
+            player_scale = 40;
+            destroy_bitmap(player);
+            player  = copy_bitmap_with_transparency(player_original, player_scale);
             player1 = copy_bitmap_with_transparency(player1_original, player_scale);
             player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-            player_small = 0;
-            gravity = 2;  // Restaure la gravité normale
+            player_small = 1;
+            egg_collected_time = time(NULL);
+            gravity = REDUCED_GRAVITY;
         }
+    }
 
-// Vérifie la collision avec l'œuf
-        if (egg_active) {
-            int egg_screen_x = egg_x - world_x;
-            int player_right = player_x + player->w;
-            int player_bottom = player_y + player->h;
-
-            if (player_right > egg_screen_x &&
-                player_x < egg_screen_x + eggblue->w &&
-                player_bottom > egg_y &&
-                player_y < egg_y + eggblue->h) {
-
-                egg_active = 0; // Désactive l'œuf après collecte
-                player_scale = 40; // Réduit la taille
-                player = copy_bitmap_with_transparency(player_original, player_scale);
-                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-                player_small = 1;
-                egg_collected_time = time(NULL); // Enregistre le temps
-                gravity = REDUCED_GRAVITY; // Réduit la gravité
-            }
-        }
-        // COLLISION AVEC L'ŒUF VERT
-        // Collision avec l'œuf vert
-        if (eggg_active && player_x + player->w >= eggg_x - world_x &&
-            player_x <= eggg_x - world_x + egggreen->w &&
-            player_y + player->h >= eggg_y &&
-            player_y <= eggg_y + egggreen->h) {
-
+    // 10quint) — ramassage œuf vert (niveau 2)
+    if (selected_level == 2 && eggg_active) {
+        int eggg_screen_x = eggg_x - world_x, eggg_screen_y = eggg_y;
+        int pr = player_x + player->w, pb = player_y + player->h;
+        if (pr > eggg_screen_x &&
+            player_x < eggg_screen_x + egggreen->w &&
+            pb > eggg_screen_y &&
+            player_y < eggg_screen_y + egggreen->h) {
             eggg_active = 0;
             eggg_collected_time = time(NULL);
-            scrollspeed = 2;
-            bombe_active = 1; // Active la bombe
-            bombe_visible = 1;
-            bombe_x = 2700; // Place la bombe au-dessus du joueur ou d'une position fixe
-            bombe_y = 75;      // Commence en haut de l'écran
-            bombe_vy = 0.0;
-            // Réduction immédiate
-            player_scale = 40; // taille réduite
-            destroy_bitmap(player);
-            player = copy_bitmap_with_transparency(player_original, player_scale);
-            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+            // ... déclencher bonus vert ici ...
         }
-// Vérifie si 2 secondes se sont écoulées après avoir touché l'œuf vert
-        if (!eggg_active && eggg_collected_time != 0) {
-            if (difftime(time(NULL), eggg_collected_time) >= 2.0) {
-                player_scale = 12; // retour à la taille normale
-                destroy_bitmap(player);
-                player = copy_bitmap_with_transparency(player_original, player_scale);
-                player1 = copy_bitmap_with_transparency(player1_original, player_scale);
-                player2 = copy_bitmap_with_transparency(player2_original, player_scale);
-                eggg_collected_time = 0; // réinitialiser pour ne pas répéter
-            }
-        }
+    }
 
-        if (eggg_collected_time > 0) {
-            int effect_duration = (int)difftime(time(NULL), eggg_collected_time);
-            if (effect_duration >= EGG_EFFECT_DURATION) {
-                scrollspeed = 2; // retour à la normale
-                eggg_collected_time = 0; // désactive le chrono
-            }
-        }
-        if (bombe_active) {
-            int bombe_right = bombe_x;
-            int bombe_bottom = bombe_y + bombe->h;
-            int bombe_left = bombe_x;
-            int bombe_top = bombe_y;
+    // 10sex) — expiration de l’effet « œuf » (tous niveaux)
+    if (player_small && time(NULL) - egg_collected_time > EGG_EFFECT_DURATION) {
+        player_scale = 12;
+        destroy_bitmap(player);
+        player  = copy_bitmap_with_transparency(player_original, player_scale);
+        player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+        player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+        player_small = 0;
+        gravity = 2;
+    }
 
-            int player_right = player_x + player->w;
-            int player_bottom = player_y + player->h;
 
-            if (player_right > bombe_x - world_x &&
-                player_x < bombe_x - world_x + bombe->w &&
-                player_bottom > bombe_y &&
-                player_y < bombe_y + bombe->h) {
-                show_end_screen();
+    // 11) Collisions obstacles / roues / bombe → même logique que le mur à droite
+    int pr = player_x + player->w, pb = player_y + player->h;
+    if (selected_level == 1) {
+        // obstacles tournants
+        for (int i = 0; i < MAX_OBSTACLES; i++) {
+            int ox = obstacle_positions[i][0] - world_x;
+            int oy = obstacle_positions[i][1];
+            if (pr > ox && player_x < ox + obstacle->w &&
+                pb > oy && player_y < oy + obstacle->h) {
+                // on « meurt » :
+                player_lives--;
+                if (player_lives > 0) {
+                    // reset simple, même que pour le mur
+                    player_x = 100; player_y = 300; player_speed_y = 0;
+                    world_x = 0; game_started = 0; start_time = time(NULL);
+                    egg_active = eggr_active = eggg_active = 1;
+                    bombe_visible = bombe_active = 1;
+                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0; bombe_explose = 0;
+                    player_scale = 12; gravity = 2;
+                    destroy_bitmap(player);
+                    player  = copy_bitmap_with_transparency(player_original, player_scale);
+                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                } else {
+                    // plus de vies → retour menu
+                    player_lives = 3;
+                    selected_level = -1;
+                    game_state = MENU;
+                }
                 return;
             }
         }
-// Simuler la chute de la bombe
-        if (selected_level == 2 && bombe_active && !bombe_explose) {
+    }
+    else if (selected_level == 2) {
+        // obstacles « normaux »
+        for (int i = 0; i < MAX_OBSTACLES; i++) {
+            int ox = obstacle2_positions[i][0] - world_x;
+            int oy = obstacle2_positions[i][1];
+            if (pr > ox && player_x < ox + obstacle->w &&
+                pb > oy && player_y < oy + obstacle->h) {
+                player_lives--;
+                if (player_lives > 0) {
+                    player_x = 100; player_y = 300; player_speed_y = 0;
+                    world_x = 0; game_started = 0; start_time = time(NULL);
+                    egg_active = eggr_active = eggg_active = 1;
+                    bombe_visible = bombe_active = 1;
+                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0; bombe_explose = 0;
+                    player_scale = 12; gravity = 2;
+                    destroy_bitmap(player);
+                    player  = copy_bitmap_with_transparency(player_original, player_scale);
+                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                } else {
+                    player_lives = 3;
+                    selected_level = -1;
+                    game_state = MENU;
+                }
+                return;
+            }
+        }
+        // roues
+        for (int i = 0; i < MAX_OBSTACLES; i++) {
+            int rx = roue_positions[i][0] - world_x;
+            int ry = roue_positions[i][1];
+            if (pr > rx && player_x < rx + roue->w &&
+                pb > ry && player_y < ry + roue->h) {
+                player_lives--;
+                if (player_lives > 0) {
+                    player_x = 100; player_y = 300; player_speed_y = 0;
+                    world_x = 0; game_started = 0; start_time = time(NULL);
+                    egg_active = eggr_active = eggg_active = 1;
+                    bombe_visible = bombe_active = 1;
+                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0; bombe_explose = 0;
+                    player_scale = 12; gravity = 2;
+                    destroy_bitmap(player);
+                    player  = copy_bitmap_with_transparency(player_original, player_scale);
+                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                } else {
+                    player_lives = 3;
+                    selected_level = -1;
+                    game_state = MENU;
+                }
+                return;
+            }
+        }
+        // bombe
+        if (bombe_visible && bombe_active) {
+            int bx = bombe_x - world_x, by = bombe_y;
+            if (pr > bx && player_x < bx + bombe->w &&
+                pb > by && player_y < by + bombe->h) {
+                player_lives--;
+                if (player_lives > 0) {
+                    player_x = 100; player_y = 300; player_speed_y = 0;
+                    world_x = 0; game_started = 0; start_time = time(NULL);
+                    egg_active = eggr_active = eggg_active = 1;
+                    bombe_visible = bombe_active = 1;
+                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0; bombe_explose = 0;
+                    player_scale = 12; gravity = 2;
+                    destroy_bitmap(player);
+                    player  = copy_bitmap_with_transparency(player_original, player_scale);
+                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                } else {
+                    player_lives = 3;
+                    selected_level = -1;
+                    game_state = MENU;
+                }
+                return;
+            }
+        }
+        // continuer à gérer la chute/explosion de la bombe ici…
+    }
+
+    // Niveau 1 : obstacles tournants + œufs
+    if (selected_level == 1) {
+        int pr = player_x + player->w, pb = player_y + player->h;
+        for (int i = 0; i < MAX_OBSTACLES; i++) {
+            int ox = obstacle_positions[i][0] - world_x;
+            int oy = obstacle_positions[i][1];
+            if (pr > ox && player_x < ox + obstacle->w &&
+                pb > oy && player_y < oy + obstacle->h) {
+                // même code de "mort" qu'au mur
+                player_lives--;
+                if (player_lives > 0) {
+                    player_x       = 100; player_y       = 300;
+                    player_speed_y = 0;   world_x        = 0;
+                    game_started   = 0;   start_time     = time(NULL);
+                    egg_active = eggr_active = eggg_active = 1;
+                    bombe_visible = bombe_active = 1;
+                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0.0; bombe_explose = 0;
+                    player_scale = 12; gravity = 2;
+                    destroy_bitmap(player);
+                    player  = copy_bitmap_with_transparency(player_original, player_scale);
+                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                } else {
+                    player_lives = 3;
+                    selected_level = -1;
+                    game_state = MENU;
+                }
+                return;
+            }
+        }
+        // œufs (inchangé, restent sous forme de bonus)
+    }
+
+    // Niveau 2 : obstacles + roues + œufs + bombe
+    if (selected_level == 2) {
+        int pr = player_x + player->w, pb = player_y + player->h;
+        // obstacles “normaux”
+        for (int i = 0; i < MAX_OBSTACLES; i++) {
+            int ox = obstacle2_positions[i][0] - world_x;
+            int oy = obstacle2_positions[i][1];
+            if (pr > ox && player_x < ox + obstacle->w &&
+                pb > oy && player_y < oy + obstacle->h) {
+                player_lives--;
+                if (player_lives > 0) {
+                    player_x       = 100; player_y       = 300;
+                    player_speed_y = 0;   world_x        = 0;
+                    game_started   = 0;   start_time     = time(NULL);
+                    egg_active = eggr_active = eggg_active = 1;
+                    bombe_visible = bombe_active = 1;
+                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0.0; bombe_explose = 0;
+                    player_scale = 12; gravity = 2;
+                    destroy_bitmap(player);
+                    player  = copy_bitmap_with_transparency(player_original, player_scale);
+                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                } else {
+                    player_lives = 3;
+                    selected_level = -1;
+                    game_state = MENU;
+                }
+                return;
+            }
+        }
+        // roues
+        for (int i = 0; i < MAX_OBSTACLES; i++) {
+            int rx = roue_positions[i][0] - world_x;
+            int ry = roue_positions[i][1];
+            if (pr > rx && player_x < rx + roue->w &&
+                pb > ry && player_y < ry + roue->h) {
+                player_lives--;
+                if (player_lives > 0) {
+                    player_x       = 100; player_y       = 300;
+                    player_speed_y = 0;   world_x        = 0;
+                    game_started   = 0;   start_time     = time(NULL);
+                    egg_active = eggr_active = eggg_active = 1;
+                    bombe_visible = bombe_active = 1;
+                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0.0; bombe_explose = 0;
+                    player_scale = 12; gravity = 2;
+                    destroy_bitmap(player);
+                    player  = copy_bitmap_with_transparency(player_original, player_scale);
+                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                } else {
+                    player_lives = 3;
+                    selected_level = -1;
+                    game_state = MENU;
+                }
+                return;
+            }
+        }
+        // bombe
+        if (bombe_visible && bombe_active) {
+            int bx = bombe_x - world_x, by = bombe_y;
+            if (pr > bx && player_x < bx + bombe->w &&
+                pb > by && player_y < by + bombe->h) {
+                player_lives--;
+                if (player_lives > 0) {
+                    player_x       = 100; player_y       = 300;
+                    player_speed_y = 0;   world_x        = 0;
+                    game_started   = 0;   start_time     = time(NULL);
+                    egg_active = eggr_active = eggg_active = 1;
+                    bombe_visible = bombe_active = 1;
+                    bombe_x = 2500; bombe_y = 100; bombe_vy = 0.0; bombe_explose = 0;
+                    player_scale = 12; gravity = 2;
+                    destroy_bitmap(player);
+                    player  = copy_bitmap_with_transparency(player_original, player_scale);
+                    player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                    player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                } else {
+                    player_lives = 3;
+                    selected_level = -1;
+                    game_state = MENU;
+                }
+                return;
+            }
+        }
+        // chute + explosion de la bombe (inchangé)
+        if (bombe_active && !bombe_explose) {
             bombe_vy += bombe_gravity;
             bombe_y += bombe_vy;
-
             if (bombe_collide_with_map()) {
                 bombe_explose = 1;
                 bombe_active = 0;
-                explosion_timer = 0;
-                explosion_frame = 0;
+                explosion_timer = explosion_frame = 0;
             }
         }
-
-
-
-
     }
 
-
+    // fin de update_physics()
 }
+
 
 
 void show_end_screen() {
@@ -890,61 +966,67 @@ void show_end_screen() {
 
             if (mouse_over) {
                 rectfill(buffer, button_x, button_y, button_x + button_w, button_y + button_h, makecol(120, 120, 200));
-                if (mouse_b & 1) {
-                    if (mouse_x >= play_button_x && mouse_x <= play_button_x + play_button_width &&
-                        mouse_y >= play_button_y && mouse_y <= play_button_y + play_button_height) {
-                        game_state = MENU;
-                        game_started = 0;
-                        selected_level = -1;
-                        player_x = 100;
-                        player_y = 300;
-                        world_x = 0;
-                        player_speed_y = 0;
-                        clear_keybuf();
 
-                    } else {
-                        stop_sample(gameover_sound);
-                        player_x = 100;
-                        player_y = 300;
-                        player_speed_y = 0;
-                        player_scale = 12;
-                        player = copy_bitmap_with_transparency(player_original, player_scale);
-                        player1 = copy_bitmap_with_transparency(player_original, player_scale);
-                        player2 = copy_bitmap_with_transparency(player_original, player_scale);
-                        world_x = 0;
-                        animation_frame = 0;
-                        game_started = 0;
-                        start_time = time(NULL);
-                        elapsed_seconds = 0;
-                        game_paused = 0;
-                        gravity = 2;
+                if (mouse_over) {
+                    rectfill(buffer, button_x, button_y, button_x + button_w, button_y + button_h, makecol(120, 120, 200));
 
-                        // Réactivation des éléments interactifs
-                        egg_active = 1;
-                        eggr_active = 1;
-                        eggg_active = 1;
-                        bombe_active = 1;
-                        bombe_x = 2500;
-                        bombe_y = 100;
-                        bombe_vy = 0.0;
-                        bombe_visible = 0;
-                        bombe_explose = 0;
-                        explosion_frame = 0;
-                        explosion_timer = 0;
+                    if (mouse_b & 1) {
+                        rest(200); // Anti double clic
 
-                        // Revenir en mode de jeu
-                        game_state = PLAYING;
-
-                        // Redémarrer la musique du niveau
-                        switch (selected_level) {
-                            case 0: play_sample(jungle_sound,100, 128, 1000, FALSE); break;
-                            case 1: play_sample(neige_sound,100, 128, 1000, FALSE); break;
-                            case 2: play_sample(feu_sound,100, 128, 1000, FALSE); break;
+                        while (mouse_b & 1) {
+                            poll_mouse();  // Attend que le clic soit relâché
                         }
+
+                        if (i == 0) { // Rejouer
+                            stop_sample(gameover_sound);
+
+                            // Réinitialisation du jeu
+                            player_x = 100;
+                            player_y = 300;
+                            player_speed_y = 0;
+                            player_scale = 12;
+                            player = copy_bitmap_with_transparency(player_original, player_scale);
+                            player1 = copy_bitmap_with_transparency(player1_original, player_scale);
+                            player2 = copy_bitmap_with_transparency(player2_original, player_scale);
+                            world_x = 0;
+                            animation_frame = 0;
+                            game_started = 0;
+                            start_time = time(NULL);
+                            elapsed_seconds = 0;
+                            game_paused = 0;
+                            gravity = 2;
+                            player_lives = 3;
+
+                            egg_active = 1;
+                            eggr_active = 1;
+                            eggg_active = 1;
+                            bombe_active = 1;
+                            bombe_x = 2500;
+                            bombe_y = 100;
+                            bombe_vy = 0.0;
+                            bombe_visible = 0;
+                            bombe_explose = 0;
+                            explosion_frame = 0;
+                            explosion_timer = 0;
+
+                            game_state = PLAYING;
+
+                            switch (selected_level) {
+                            case 0: play_sample(jungle_sound, 100, 128, 1000, FALSE); break;
+                            case 1: play_sample(neige_sound, 100, 128, 1000, FALSE); break;
+                            case 2: play_sample(feu_sound, 100, 128, 1000, FALSE); break;
+                            }
+
+                        } else if (i == 1) { // Quitter
+                            game_state = MENU;
+                            game_started = 0;
+                            selected_level = -1;
+                        }
+
+                        choice_made = 1;
                     }
-                    choice_made = 1;
-                    rest(200); // Petite pause pour éviter double clic
                 }
+
             } else {
                 rectfill(buffer, button_x, button_y, button_x + button_w, button_y + button_h, makecol(80, 80, 150));
             }
@@ -952,10 +1034,10 @@ void show_end_screen() {
             textout_centre_ex(buffer, font, options[i], GAME_SCREEN_W / 2, button_y + 15, makecol(255, 255, 255), -1);
         }
 
-        // Affiche le buffer à l'écran
         blit(buffer, screen, 0, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
     }
 }
+
 
 void show_victory_screen(){
     int blink = 0;
@@ -1195,6 +1277,10 @@ void draw_game(){
     }
 
     draw_timer();
+    // Affichage des vies
+    for (int i = 0; i < player_lives; i++) {
+        draw_sprite(buffer, heart_icon, 10 + i * (heart_icon->w + 5), 40);
+    }
     // Sélection du sprite actif
     BITMAP *current_sprite = player;
 
@@ -1333,23 +1419,23 @@ void play_music(SAMPLE* music) {
 void draw() {
     clear_bitmap(buffer);
 
-    // Dessin de l'écran selon l'état du jeu
     if (game_state == MENU) {
         draw_menu();
     }
     else if (game_state == LEVEL_SELECTION) {
         draw_level_selection();
         load_map_for_selected_level();
-    } else if (game_state == PLAYING) {
+    }
+    else if (game_state == PLAYING) {
         draw_game();
     }
     if (game_state == MENU || game_state == LEVEL_SELECTION) {
         play_music(jungle_sound);
     }
 
-    // Blit final
     blit(buffer, screen, 0, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
 }
+
 
 
 int main() {
