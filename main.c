@@ -207,8 +207,8 @@ int obstacle2_positions[MAX_OBSTACLES][2] = {
         {1750, 480},
         {4000, 150},
         {5000, 350},
-        {5650, 450},
-        {5900, 280},
+        {5650, 500},
+
 
 };
 int roue_positions[MAX_OBSTACLES][2] = {
