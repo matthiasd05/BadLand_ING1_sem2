@@ -19,6 +19,37 @@
 #define EGG_EFFECT_DURATION 15 // Durée de l'effet en secondes
 #define REDUCED_GRAVITY 1  // Gravité plus faible
 #define AUGM_GRAVITY 3
+#define SUBMENU 4
+#define START_MENU 10
+#define SAVE_FILE "sauvegardes.txt"
+char pseudo_joueur[50] = "Anonyme";  // Valeur par défaut si pas défini
+
+int charger_niveau_pseudo(const char* pseudo) {
+    FILE *file = fopen(SAVE_FILE, "r");
+    if (!file) return -1;
+
+    char temp_pseudo[50];
+    int niveau;
+
+    while (fscanf(file, "%s %d", temp_pseudo, &niveau) == 2) {
+        if (strcmp(temp_pseudo, pseudo) == 0) {
+            fclose(file);
+            return niveau;
+        }
+    }
+
+    fclose(file);
+    return -1; // Pseudo non trouvé
+}
+
+
+typedef struct {
+    char pseudo[50];
+    int niveau;
+} Joueur;
+
+Joueur joueur_actuel;
+int pseudo_saisi = 0;
 static float obstacle_angle = 0;
 static float roue_angle = 0;
 
@@ -185,7 +216,8 @@ void show_pause_screen();
 void draw_rotating_obstacle(int x, int y);
 void draw_rotating_roue(int x, int y);
 void load_map_for_selected_level();
-
+int charger_niveau_pseudo(const char* pseudo);
+void draw_start_menu();
 void init() {
     allegro_init();
     install_keyboard();
@@ -1195,6 +1227,15 @@ void draw_game(){
             draw_sprite(buffer, eggred, eggr_x - world_x, eggr_y);
 
         }
+
+        char texte_pseudo[60];
+        sprintf(texte_pseudo, "Joueur : %s", pseudo_joueur);
+        int largeur_texte = text_length(font, texte_pseudo);
+        textout_ex(buffer, font, texte_pseudo,
+                   GAME_SCREEN_W - largeur_texte - 10,
+                   10,
+                   makecol(255, 255, 255), -1);
+
     }
 
     if (selected_level == 2) {
@@ -1258,6 +1299,15 @@ void draw_game(){
     }
 
     draw_timer();
+    // Affichage du pseudo du joueur en haut à droite
+    char texte_pseudo[60];
+    sprintf(texte_pseudo, "Joueur : %s", pseudo_joueur);
+    int largeur_texte = text_length(font, texte_pseudo);
+    textout_ex(buffer, font, texte_pseudo,
+               GAME_SCREEN_W - largeur_texte - 10,  // position droite
+               10,                                  // position verticale
+               makecol(255, 255, 255), -1);         // couleur texte
+
     // Affichage des vies
     for (int i = 0; i < player_lives; i++) {
         draw_sprite(buffer, heart_icon, 10 + i * (heart_icon->w + 5), 40);
@@ -1282,43 +1332,53 @@ void draw_game(){
     masked_blit(current_sprite, buffer, 0, 0, player_x, player_y, current_sprite->w, current_sprite->h);
 
 }
+void draw_menu() {
+    draw_sprite(buffer, menu_background, 0, 0); // fond du menu
 
-void draw_menu(){
-    draw_sprite(buffer, menu_background, 0, 0);
-    stop_sample(gameover_sound);
+    // Affichage du logo BADLAND centré
+    if (badland_logo) {
+        int logo_x = (GAME_SCREEN_W - badland_logo->w) / 2;
+        int logo_y = 60;
+        draw_sprite(buffer, badland_logo, logo_x, logo_y);
+    }
+
+    // Coordonnées du bouton "JOUER"
+    int button_width = 200;
+    int button_height = 60;
+    int button_x = (GAME_SCREEN_W - button_width) / 2;
+    int button_y = 300;
+
     poll_mouse();
     my_mouse_x = mouse_x;
     my_mouse_y = mouse_y;
 
-    // Affichage du logo (centré horizontalement, au-dessus du bouton)
-    if (badland_logo) {
-        int logo_x = (GAME_SCREEN_W - badland_logo->w) / 2;
-        int logo_y = play_button_y - 20 - badland_logo->h;  // juste au-dessus du bouton
-        draw_sprite(buffer, badland_logo, logo_x, logo_y);
+    int mouse_over_button = (my_mouse_x >= button_x && my_mouse_x <= button_x + button_width &&
+                             my_mouse_y >= button_y && my_mouse_y <= button_y + button_height);
+
+    // Couleur du bouton en fonction du survol
+    int fill_color = mouse_over_button ? makecol(100, 0, 0) : makecol(50, 0, 0);
+    int border_color = makecol(255, 255, 255);
+    int text_color = makecol(255, 255, 255);
+
+    rectfill(buffer, button_x, button_y, button_x + button_width, button_y + button_height, fill_color);
+    rect(buffer, button_x, button_y, button_x + button_width, button_y + button_height, border_color);
+
+    textout_centre_ex(buffer, font, "JOUER", button_x + button_width / 2,
+                      button_y + (button_height / 2) - text_height(font) / 2,
+                      text_color, -1);
+
+    // Clic sur le bouton
+    if (mouse_over_button && (mouse_b & 1)) {
+        game_state = START_MENU;  // vers écran de pseudo
+        rest(200);
     }
 
-    // Détection du survol du bouton
-    int mouse_over_button = (my_mouse_x >= play_button_x && my_mouse_x <= play_button_x + play_button_width &&
-                             my_mouse_y >= play_button_y && my_mouse_y <= play_button_y + play_button_height);
-
-    if (mouse_over_button) {
-        draw_sprite(buffer, play_button_hover, play_button_x, play_button_y);
-        if (mouse_b & 1) {
-            game_state = LEVEL_SELECTION;
-            rest(200);
-        }
-    } else {
-        draw_sprite(buffer, play_button, play_button_x, play_button_y);
-    }
-
-    // Affichage du texte d'instruction sous le bouton
-    char *msg = "Ou appuyez sur ESPACE pour commencer";
-    int text_width = text_length(font, msg);
-    int text_x = (GAME_SCREEN_W - text_width) / 2;
-    int text_y = play_button_y + play_button_height + 10;
-
-    textout_ex(buffer, font, msg, text_x, text_y, makecol(255, 255, 255), -1);
+    // Message informatif sous le bouton
+    textout_centre_ex(buffer, font, "Appuyez sur ESPACE pour commencer",
+                      GAME_SCREEN_W / 2, button_y + button_height + 20,
+                      makecol(255, 255, 255), -1);
 }
+
 void load_map_for_selected_level() {
     if (map_overlay) destroy_bitmap(map_overlay);  // Nettoie l’ancienne map si besoin
 
@@ -1394,6 +1454,60 @@ void play_music(SAMPLE* music) {
             play_sample(current_music, 250, 128, 1000, TRUE);
         }
     }
+}void draw_start_menu() {
+    clear_bitmap(buffer);
+    draw_sprite(buffer, menu_background, 0, 0);
+
+    // Afficher le logo Badland en haut
+    if (badland_logo) {
+        int logo_x = (GAME_SCREEN_W - badland_logo->w) / 2;
+        draw_sprite(buffer, badland_logo, logo_x, 30);
+    }
+
+    // Cadre pour la saisie du pseudo
+    int box_w = 400;
+    int box_h = 200;
+    int box_x = (GAME_SCREEN_W - box_w) / 2;
+    int box_y = 200;
+
+    rectfill(buffer, box_x, box_y, box_x + box_w, box_y + box_h, makecol(0, 0, 0));
+    rect(buffer, box_x, box_y, box_x + box_w, box_y + box_h, makecol(255, 255, 255));
+
+    textout_centre_ex(buffer, font, "Entrez votre pseudo :", GAME_SCREEN_W / 2, box_y + 30, makecol(255, 255, 255), -1);
+
+    // Zone de texte (pseudo actuel saisi)
+    static char pseudo[50] = "";
+    static int pos = 0;
+
+    rectfill(buffer, box_x + 50, box_y + 70, box_x + box_w - 50, box_y + 100, makecol(30, 30, 60));
+    rect(buffer, box_x + 50, box_y + 70, box_x + box_w - 50, box_y + 100, makecol(200, 200, 200));
+    textout_ex(buffer, font, pseudo, box_x + 60, box_y + 75, makecol(255, 255, 255), -1);
+
+    // Instructions
+    textout_centre_ex(buffer, font, "ENTRER : Charger / Créer   |   ESC : Retour",
+                      GAME_SCREEN_W / 2, box_y + 150, makecol(180, 180, 180), -1);
+
+    // Lecture clavier
+    if (keypressed()) {
+        int c = readkey() & 0xFF;
+        if (c == 8 && pos > 0) { // Backspace
+            pos--;
+            pseudo[pos] = '\0';
+        } else if (c >= 32 && c <= 126 && pos < 48) { // caractères visibles
+            pseudo[pos++] = (char)c;
+            pseudo[pos] = '\0';
+        } else if (c == 13 && strlen(pseudo) > 0) { // Entrée
+            strcpy(pseudo_joueur, pseudo);
+            int niv = charger_niveau_pseudo(pseudo);
+            selected_level = (niv >= 0) ? niv : 0;
+            game_state = LEVEL_SELECTION;
+        } else if (c == 27) { // ESC
+            game_state = MENU;
+        }
+    }
+
+    // Affichage final
+    blit(buffer, screen, 0, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
 }
 
 
@@ -1413,6 +1527,14 @@ void draw() {
     if (game_state == MENU || game_state == LEVEL_SELECTION) {
         play_music(jungle_sound);
     }
+    else if (game_state == SUBMENU) {
+        draw_start_menu();
+    }
+    else if (game_state == START_MENU) {
+        draw_start_menu();
+    }
+
+
 
     blit(buffer, screen, 0, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
 }
@@ -1426,7 +1548,7 @@ int main() {
         show_mouse(screen);
 
         if (game_state == MENU && key[KEY_SPACE]) {
-            game_state = LEVEL_SELECTION;
+            game_state = SUBMENU;  // Redirige vers le nouveau menu
             rest(200);
         }
 
