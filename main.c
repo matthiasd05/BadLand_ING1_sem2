@@ -853,38 +853,104 @@ void update_physics() {
 }
 
 
-void show_end_screen(){
-    int blink = 0;
+void show_end_screen() {
     clear_keybuf();
     stop_sample(nature_sound);
     stop_sample(neige_sound);
     stop_sample(feu_sound);
     play_sample(gameover_sound, 255, 128, 1000, FALSE);
 
-    while (!key[KEY_ENTER]) {
-        clear_bitmap(buffer);
+    int button_w = 200;
+    int button_h = 50;
+    int start_y = 250; // Position verticale de départ pour les boutons
+    const char *options[] = {"Rejouer", "Quitter"};
+
+    int choice_made = 0;
+
+    while (!choice_made) {
+        poll_mouse();
+        my_mouse_x = mouse_x;
+        my_mouse_y = mouse_y;
+
+        // Dessine le fond de fin de partie
         draw_sprite(buffer, end_screen_image, 0, 0);
 
-        if (blink) {
-            textout_centre_ex(buffer, font, "Restez Appuyé sur ENTRER pour retourner au menu",
-                              GAME_SCREEN_W/2, GAME_SCREEN_H - 50, makecol(255,255,255), -1);
+        for (int i = 0; i < 2; i++) {
+            int button_x = (GAME_SCREEN_W - button_w) / 2;
+            int button_y = start_y + i * 100;
+
+            int mouse_over = (my_mouse_x >= button_x && my_mouse_x <= button_x + button_w &&
+                              my_mouse_y >= button_y && my_mouse_y <= button_y + button_h);
+
+            if (mouse_over) {
+                rectfill(buffer, button_x, button_y, button_x + button_w, button_y + button_h, makecol(120, 120, 200));
+                if (mouse_b & 1) {
+                    if (mouse_x >= play_button_x && mouse_x <= play_button_x + play_button_width &&
+                        mouse_y >= play_button_y && mouse_y <= play_button_y + play_button_height) {
+                        game_state = MENU;
+                        game_started = 0;
+                        selected_level = -1;
+                        player_x = 100;
+                        player_y = 300;
+                        world_x = 0;
+                        player_speed_y = 0;
+                        clear_keybuf();
+
+                    } else {
+                        stop_sample(gameover_sound);
+                        player_x = 100;
+                        player_y = 300;
+                        player_speed_y = 0;
+                        player_scale = 12;
+                        player = copy_bitmap_with_transparency(player_original, player_scale);
+                        player1 = copy_bitmap_with_transparency(player_original, player_scale);
+                        player2 = copy_bitmap_with_transparency(player_original, player_scale);
+                        world_x = 0;
+                        animation_frame = 0;
+                        game_started = 0;
+                        start_time = time(NULL);
+                        elapsed_seconds = 0;
+                        game_paused = 0;
+                        gravity = 2;
+
+                        // Réactivation des éléments interactifs
+                        egg_active = 1;
+                        eggr_active = 1;
+                        eggg_active = 1;
+                        bombe_active = 1;
+                        bombe_x = 2500;
+                        bombe_y = 100;
+                        bombe_vy = 0.0;
+                        bombe_visible = 0;
+                        bombe_explose = 0;
+                        explosion_frame = 0;
+                        explosion_timer = 0;
+
+                        // Revenir en mode de jeu
+                        game_state = PLAYING;
+
+                        // Redémarrer la musique du niveau
+                        switch (selected_level) {
+                            case 0: play_sample(jungle_sound,100, 128, 1000, FALSE); break;
+                            case 1: play_sample(neige_sound,100, 128, 1000, FALSE); break;
+                            case 2: play_sample(feu_sound,100, 128, 1000, FALSE); break;
+                        }
+                    }
+                    choice_made = 1;
+                    rest(200); // Petite pause pour éviter double clic
+                }
+            } else {
+                rectfill(buffer, button_x, button_y, button_x + button_w, button_y + button_h, makecol(80, 80, 150));
+            }
+
+            textout_centre_ex(buffer, font, options[i], GAME_SCREEN_W / 2, button_y + 15, makecol(255, 255, 255), -1);
         }
 
+        // Affiche le buffer à l'écran
         blit(buffer, screen, 0, 0, 0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
-        blink = !blink;
-        rest(500);
     }
-
-    // Réinitialisation du jeu
-    game_state = MENU;
-    game_started = 0;
-    selected_level = -1;
-    player_x = 100;
-    player_y = 300;
-    world_x = 0;
-    player_speed_y = 0;
-    clear_keybuf();
 }
+
 void show_victory_screen(){
     int blink = 0;
     clear_keybuf();
