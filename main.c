@@ -24,6 +24,39 @@
 #define SAVE_FILE "sauvegardes.txt"
 char pseudo_joueur[50] = "Anonyme";  // Valeur par défaut si pas défini
 
+void sauvegarder_niveau_pseudo(const char* pseudo, int niveau) {
+    FILE *file = fopen(SAVE_FILE, "r");
+    FILE *temp = fopen("temp_sauvegarde.txt", "w");
+    int found = 0;
+    char buffer_pseudo[50];
+    int old_niveau;
+
+    // Met à jour la ligne du pseudo si déjà présent
+    if (file && temp) {
+        while (fscanf(file, "%s %d", buffer_pseudo, &old_niveau) == 2) {
+            if (strcmp(buffer_pseudo, pseudo) == 0) {
+                fprintf(temp, "%s %d\n", pseudo, niveau);
+                found = 1;
+            } else {
+                fprintf(temp, "%s %d\n", buffer_pseudo, old_niveau);
+            }
+        }
+        fclose(file);
+        fclose(temp);
+        remove(SAVE_FILE);
+        rename("temp_sauvegarde.txt", SAVE_FILE);
+    }
+
+    // Si le pseudo n'était pas encore enregistré
+    if (!found) {
+        file = fopen(SAVE_FILE, "a");
+        if (file) {
+            fprintf(file, "%s %d\n", pseudo, niveau);
+            fclose(file);
+        }
+    }
+}
+
 int charger_niveau_pseudo(const char* pseudo) {
     FILE *file = fopen(SAVE_FILE, "r");
     if (!file) return -1;
@@ -1366,7 +1399,29 @@ void draw_menu() {
     textout_centre_ex(buffer, font, "JOUER", button_x + button_width / 2,
                       button_y + (button_height / 2) - text_height(font) / 2,
                       text_color, -1);
+    // BOUTON CHARGER — même style que "JOUER"
+    int charger_button_y = play_button_y + 100;
+    int charger_mouse_over = (my_mouse_x >= play_button_x && my_mouse_x <= play_button_x + play_button_width &&
+                              my_mouse_y >= charger_button_y && my_mouse_y <= charger_button_y + play_button_height);
 
+    // Style identique à JOUER
+    int charger_fill_color = charger_mouse_over ? makecol(100, 0, 0) : makecol(50, 0, 0);
+    rectfill(buffer, play_button_x, charger_button_y,
+             play_button_x + play_button_width, charger_button_y + play_button_height, charger_fill_color);
+    rect(buffer, play_button_x, charger_button_y,
+         play_button_x + play_button_width, charger_button_y + play_button_height, makecol(255, 255, 255));
+
+    // Texte "CHARGER"
+    textout_centre_ex(buffer, font, "CHARGER",
+                      play_button_x + play_button_width / 2,
+                      charger_button_y + (play_button_height / 2) - text_height(font) / 2,
+                      makecol(255, 255, 255), -1);
+
+    // Action clic
+    if (charger_mouse_over && (mouse_b & 1)) {
+        rest(200);
+        allegro_message("Aucune sauvegarde trouvée");
+    }
     // Clic sur le bouton
     if (mouse_over_button && (mouse_b & 1)) {
         game_state = START_MENU;  // vers écran de pseudo
