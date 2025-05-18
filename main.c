@@ -59,6 +59,15 @@ BITMAP *eggblue;
 BITMAP *eggred;
 BITMAP *egggreen;
 
+int bombe_x = 2500;
+int bombe_y = 100;
+int bombe_active = 1;
+float bombe_vy = 0.0;     // Vitesse verticale
+float bombe_gravity = 0.09; // Gravité appliquée à la bombe
+int bombe_visible = 0;
+int bombe_explose = 0;
+int explosion_frame = 0;
+int explosion_timer = 0;
 
 int egg_x = 1500; // Position initiale dans le monde
 int egg_y = 300;
