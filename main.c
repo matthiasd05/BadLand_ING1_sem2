@@ -1369,51 +1369,53 @@ void draw_menu() {
     int mouse_over_button = (my_mouse_x >= button_x && my_mouse_x <= button_x + button_width &&
                              my_mouse_y >= button_y && my_mouse_y <= button_y + button_height);
 
-    // Couleur du bouton en fonction du survol
     int fill_color = mouse_over_button ? makecol(100, 0, 0) : makecol(50, 0, 0);
     int border_color = makecol(255, 255, 255);
     int text_color = makecol(255, 255, 255);
 
+    // Bouton JOUER
     rectfill(buffer, button_x, button_y, button_x + button_width, button_y + button_height, fill_color);
     rect(buffer, button_x, button_y, button_x + button_width, button_y + button_height, border_color);
 
     textout_centre_ex(buffer, font, "JOUER", button_x + button_width / 2,
                       button_y + (button_height / 2) - text_height(font) / 2,
                       text_color, -1);
-    // BOUTON CHARGER — même style que "JOUER"
-    int charger_button_y = play_button_y + 100;
-    int charger_mouse_over = (my_mouse_x >= play_button_x && my_mouse_x <= play_button_x + play_button_width &&
-                              my_mouse_y >= charger_button_y && my_mouse_y <= charger_button_y + play_button_height);
 
-    // Style identique à JOUER
+    // Bouton CHARGER
+    int charger_button_y = button_y + 100;
+
+    int charger_mouse_over = (my_mouse_x >= button_x && my_mouse_x <= button_x + button_width &&
+                              my_mouse_y >= charger_button_y && my_mouse_y <= charger_button_y + button_height);
+
     int charger_fill_color = charger_mouse_over ? makecol(100, 0, 0) : makecol(50, 0, 0);
-    rectfill(buffer, play_button_x, charger_button_y,
-             play_button_x + play_button_width, charger_button_y + play_button_height, charger_fill_color);
-    rect(buffer, play_button_x, charger_button_y,
-         play_button_x + play_button_width, charger_button_y + play_button_height, makecol(255, 255, 255));
 
-    // Texte "CHARGER"
+    rectfill(buffer, button_x, charger_button_y,
+             button_x + button_width, charger_button_y + button_height, charger_fill_color);
+    rect(buffer, button_x, charger_button_y,
+         button_x + button_width, charger_button_y + button_height, border_color);
+
     textout_centre_ex(buffer, font, "CHARGER",
-                      play_button_x + play_button_width / 2,
-                      charger_button_y + (play_button_height / 2) - text_height(font) / 2,
-                      makecol(255, 255, 255), -1);
+                      button_x + button_width / 2,
+                      charger_button_y + (button_height / 2) - text_height(font) / 2,
+                      text_color, -1);
 
-    // Action clic
+    // Message entre les deux boutons
+    int message_y = button_y + button_height + 10;
+    textout_centre_ex(buffer, font, "Appuyez sur ESPACE pour commencer",
+                      GAME_SCREEN_W / 2, message_y,
+                      text_color, -1);
+
+    // Actions clics
     if (charger_mouse_over && (mouse_b & 1)) {
         rest(200);
         allegro_message("Aucune sauvegarde trouvée");
     }
-    // Clic sur le bouton
     if (mouse_over_button && (mouse_b & 1)) {
         game_state = START_MENU;  // vers écran de pseudo
         rest(200);
     }
-
-    // Message informatif sous le bouton
-    textout_centre_ex(buffer, font, "Appuyez sur ESPACE pour commencer",
-                      GAME_SCREEN_W / 2, button_y + button_height + 20,
-                      makecol(255, 255, 255), -1);
 }
+
 
 void load_map_for_selected_level() {
     if (map_overlay) destroy_bitmap(map_overlay);  // Nettoie l’ancienne map si besoin
